@@ -1,0 +1,79 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!78 &1
+TagManager:
+  serializedVersion: 3
+  tags: []
+  layers:
+  - Default
+  - TransparentFX
+  - Ignore Raycast
+  - 
+  - Water
+  - UI
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  - 
+  m_SortingLayers:
+  - name: Default
+    uniqueID: 0
+    locked: 0
+  - name: agua
+    uniqueID: 787700655
+    locked: 0
+  - name: Sombra Agua
+    uniqueID: 3311551435
+    locked: 0
+  - name: Suelo
+    uniqueID: 4218154161
+    locked: 0
+  - name: Construcciones(suelo)
+    uniqueID: 1694533171
+    locked: 0
+  - name: Decoracion(suelo)
+    uniqueID: 70446081
+    locked: 0
+  - name: "monta\xF1a"
+    uniqueID: 4073015067
+    locked: 0
+  - name: Construcciones(mont)
+    uniqueID: 106025059
+    locked: 0
+  - name: Decoracion(mont)
+    uniqueID: 735894687
+    locked: 0
+  - name: personaje
+    uniqueID: 1479571795
+    locked: 0
+  - name: Nubes
+    uniqueID: 2314639413
+    locked: 0
+  - name: animales
+    uniqueID: 3640002969
+    locked: 0
+  m_RenderingLayers:
+  - Default
+  m_MigratedRenderPipelines: []
