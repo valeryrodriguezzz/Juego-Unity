@@ -3,21 +3,24 @@ using UnityEngine.SceneManagement;
 
 public class LevelManager : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
+    // Escribe aqui el nombre EXACTO de tu escena de seleccion
+    // (tal como aparece en Build Settings y en el archivo .unity)
+    [Header("Nombre de la escena de seleccion de personaje")]
+    public string characterSelectSceneName = "SeleccionJugador";
+
     void Start()
     {
-        
+
     }
 
-    // Update is called once per frame
     void Update()
     {
-        
+
     }
 
     public void BotonStart()
     {
         Debug.Log("¡EL BOTÓN SI RESPONDE AL CLICK!");
-        SceneManager.LoadScene(1);
+        SceneManager.LoadScene(characterSelectSceneName);
     }
 }

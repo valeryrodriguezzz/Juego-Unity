@@ -1,36 +1,66 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using TMPro; // Si NO usas TextMeshPro, borra esta linea y usa UnityEngine.UI + InputField normal
+using TMPro;
 
-// COMO USARLO EN TU ESCENA DE SELECCION:
+// COMO USARLO EN TU ESCENA DE SELECCION (diseno de carrusel):
 // 1) Crea un GameObject vacio (ej: "SelectManager") y pega este script ahi.
-// 2) Arrastra tu campo de texto (InputField / TMP_InputField) al campo "Name Input Field".
-// 3) Escribe en "Next Scene Name" el nombre EXACTO de tu escena de Grecia.
-// 4) En cada boton de personaje, en su OnClick():
-//    - Arrastra "SelectManager", elige SeleccionarPersonaje(string) y escribe
-//      el "Imperio" o tipo de personaje que representa ese boton (ej: "Grecia").
-// 5) En el boton "Confirmar/Continuar", en su OnClick():
-//    - Arrastra "SelectManager" y elige ConfirmarSeleccion()
+// 2) En el Inspector:
+//    - Arrastra tu InputField_Nombre al campo "Name Input Field".
+//    - Arrastra el objeto "PersonajeImagen" al campo "Personaje Image".
+//    - En "Avatares" (lista), agrega los RETRATOS (cabezas) de cada personaje.
+//      IMPORTANTE: el orden aqui debe coincidir con el orden de los sprites
+//      de cuerpo completo que pongas despues en PlayerController (escena Juego).
+//    - Escribe el nombre exacto de tu siguiente escena en "Next Scene Name".
+// 3) BotonSiguiente -> On Click() -> SelectManager -> Siguiente()
+// 4) BotonAnterior  -> On Click() -> SelectManager -> Anterior()
+// 5) BotonJugar      -> On Click() -> SelectManager -> ConfirmarSeleccion()
 
 public class CharacterSelectManager : MonoBehaviour
 {
     [Header("UI")]
     public TMP_InputField nameInputField;
+    public Image personajeImage;
 
-    [Header("Escena a cargar al confirmar (nombre exacto en Build Settings)")]
-    public string nextSceneName = "Grecia";
+    [Header("Retratos para el carrusel (cabezas, en el mismo orden que los sprites de cuerpo)")]
+    public Sprite[] avatares;
 
-    private string imperioSeleccionado = "Grecia"; // valor por defecto
+    [Header("Escena a cargar al confirmar")]
+    public string nextSceneName = "Juego";
 
-    // Conecta esta funcion al OnClick() de cada boton de personaje,
-    // pasando el nombre del imperio/personaje que representa ese boton.
-    public void SeleccionarPersonaje(string imperio)
+    private int indiceActual = 0;
+
+    private void Start()
     {
-        imperioSeleccionado = imperio;
-        Debug.Log("Personaje/Imperio seleccionado: " + imperio);
+        MostrarAvatarActual();
     }
 
-    // Conecta esta funcion al OnClick() del boton "Confirmar" / "Continuar"
+    public void Siguiente()
+    {
+        if (avatares == null || avatares.Length == 0) return;
+
+        indiceActual++;
+        if (indiceActual >= avatares.Length) indiceActual = 0;
+        MostrarAvatarActual();
+    }
+
+    public void Anterior()
+    {
+        if (avatares == null || avatares.Length == 0) return;
+
+        indiceActual--;
+        if (indiceActual < 0) indiceActual = avatares.Length - 1;
+        MostrarAvatarActual();
+    }
+
+    private void MostrarAvatarActual()
+    {
+        if (personajeImage != null && avatares.Length > 0)
+        {
+            personajeImage.sprite = avatares[indiceActual];
+        }
+    }
+
     public void ConfirmarSeleccion()
     {
         string nombreEscrito = (nameInputField != null && !string.IsNullOrWhiteSpace(nameInputField.text))
@@ -39,9 +69,9 @@ public class CharacterSelectManager : MonoBehaviour
 
         if (PlayerSelectionManager.Instance != null)
         {
-            // Aqui es donde se crea tu objeto Jugador (Modelo) real,
-            // con el nombre que escribiste conectado a la clase Personaje/Jugador.
-            PlayerSelectionManager.Instance.CrearJugador(nombreEscrito, imperioSeleccionado);
+            // Pasamos el INDICE, no el sprite, porque el sprite del carrusel
+            // (retrato) y el sprite del cuerpo en el mapa son distintos.
+            PlayerSelectionManager.Instance.CrearPartida(nombreEscrito, indiceActual);
         }
         else
         {

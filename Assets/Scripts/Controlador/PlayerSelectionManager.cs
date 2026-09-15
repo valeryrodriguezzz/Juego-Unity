@@ -1,8 +1,10 @@
 using UnityEngine;
+using ImperiosEnGuerra.Modelo;
 
-// Este script sigue siendo el "puente" que sobrevive entre escenas
-// (Menu -> Seleccion -> Grecia), pero ahora guarda tu objeto Jugador
-// real del Modelo, no strings sueltos.
+// Puente que sobrevive entre escenas (Menu -> Seleccion -> Juego).
+// Guarda la PartidaModel completa + el INDICE del avatar elegido
+// (no el sprite directo, porque el retrato del carrusel y el sprite
+// de cuerpo completo en el mapa son imagenes distintas).
 //
 // COMO USARLO:
 // 1) En tu escena de Menu, crea un GameObject vacio llamado "GameManager".
@@ -12,8 +14,13 @@ public class PlayerSelectionManager : MonoBehaviour
 {
     public static PlayerSelectionManager Instance { get; private set; }
 
-    // El Jugador (Modelo) que se va a usar en la partida
-    public JugadorModel JugadorActual { get; private set; }
+    // La partida completa: Jugador (siempre Grecia) + MapaMundial
+    public PartidaModel Partida { get; private set; }
+
+    // Indice del personaje elegido en el carrusel (0, 1, 2...).
+    // Se usa despues para buscar el sprite de CUERPO correspondiente
+    // en la escena Juego (ver PlayerController).
+    public int AvatarIndex { get; private set; } = 0;
 
     private void Awake()
     {
@@ -28,9 +35,13 @@ public class PlayerSelectionManager : MonoBehaviour
     }
 
     // Se llama desde la escena de seleccion de personaje al confirmar
-    public void CrearJugador(string nombre, string imperio)
+    public void CrearPartida(string nombreJugador, int avatarIndex)
     {
-        JugadorActual = new JugadorModel(nombre, imperio);
-        Debug.Log("Jugador creado: " + JugadorActual.Nombre + " - Imperio: " + JugadorActual.Imperio);
+        AvatarIndex = avatarIndex;
+        Partida = new PartidaModel(nombreJugador);
+
+        Debug.Log("Partida creada. Jugador: " + Partida.Jugador.Nombre +
+                   " (Civilizacion: " + Partida.Jugador.Civilizacion +
+                   ", AvatarIndex: " + avatarIndex + ")");
     }
 }

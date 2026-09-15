@@ -40,7 +40,7 @@ namespace ImperiosEnGuerra.Modelo
         public PartidaModel(string nombreJugador)
         {
             // El jugador siempre es Grecia
-            Jugador     = new JugadorModel(nombreJugador, Civilizacion.Grecia, esIA: false);
+            Jugador     = new JugadorModel(nombreJugador, Civilizacion.Grecia, esIA: false);   
             MapaMundial = new MapaMundialModel();
         }
 

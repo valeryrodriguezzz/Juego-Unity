@@ -1,18 +1,65 @@
-using UnityEngine;
+using System.Collections.Generic;
+using ImperiosEnGuerra.Modelo.Edificios;
 
-public class JugadorModel : PersonajeModel
+namespace ImperiosEnGuerra.Modelo
 {
-    // El rol para un Jugador siempre es "Jugador"; por eso no lo pedimos
-    // como parámetro, solo el nombre (elegido en la UI) y el imperio.
-    public JugadorModel(string nombre, string imperio) : base(nombre, "Jugador", imperio)
+    public class JugadorModel
     {
-    }
+        public string Nombre { get; set; }
+        public bool EsIA { get; set; }
+        public Civilizacion Civilizacion { get; set; }
 
-    public override void Atacar()
-    {
-        Debug.Log(Nombre + " (Jugador) ataca con fuerza " + NivelFuerza);
-    }
+        // ── Recursos ──────────────────────────────────────────────────
+        // Se generan automáticamente mediante hilos en RecursoController
+        public int Oro { get; set; } = 200;
+        public int Madera { get; set; } = 150;
+        public int Comida { get; set; } = 100;
+        public int Armas { get; set; } = 0;
 
-    // Puedes sobreescribir aquí cualquier otro método si el Jugador
-    // se comporta distinto al comportamiento base de Personaje.
+        // ── Unidades y Edificios ───────────────────────────────────────
+        public List<UnidadModel> Unidades { get; set; } = new List<UnidadModel>();
+        public List<EdificioModel> Edificios { get; set; } = new List<EdificioModel>();
+
+        // El edificio principal — si cae, el jugador pierde
+        public EdificioModel EdificioPrincipal { get; set; }
+
+        // ── Estado ────────────────────────────────────────────────────
+        public bool Perdio => EdificioPrincipal == null || !EdificioPrincipal.EstaEnPie;
+
+        public JugadorModel(string nombre, Civilizacion civilizacion, bool esIA = false)
+        {
+            Nombre = nombre;
+            Civilizacion = civilizacion;
+            EsIA = esIA;
+        }
+
+        public bool TieneRecursos(int oro = 0, int madera = 0,
+                                  int comida = 0, int armas = 0)
+        {
+            return Oro >= oro &&
+                   Madera >= madera &&
+                   Comida >= comida &&
+                   Armas >= armas;
+        }
+
+        public void GastarRecursos(int oro = 0, int madera = 0,
+                                   int comida = 0, int armas = 0)
+        {
+            Oro -= oro;
+            Madera -= madera;
+            Comida -= comida;
+            Armas -= armas;
+        }
+
+        public void AgregarRecurso(TipoRecurso tipo, int cantidad)
+        {
+            switch (tipo)
+            {
+                case TipoRecurso.Oro: Oro += cantidad; break;
+                case TipoRecurso.Madera: Madera += cantidad; break;
+                case TipoRecurso.Comida: Comida += cantidad; break;
+                case TipoRecurso.Armas: Armas += cantidad; break;
+            }
+        }
+    }
 }
