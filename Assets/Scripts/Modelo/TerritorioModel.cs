@@ -1,52 +1,67 @@
+using System;
+
 namespace ImperiosEnGuerra.Modelo
 {
-    /// Estado de un territorio en el mapa mundial
+    // Estados posibles del territorio:
     public enum EstadoTerritorio
     {
-        Base,       // Territorio inicial de Grecia — no se puede atacar
-        Neutral,    // Aún no conquistado por nadie
-        Conquistado // Ya fue conquistado por el jugador (Grecia)
+        Neutral,
+        Base,
+        Conquistado
     }
 
-    /// Representa un territorio en el mapa mundial.
-    ///
-    /// El jugador (Grecia) ve el mapa mundial con varios territorios.
-    /// Al hacer clic en uno, inicia una batalla (mapa 15x15) contra
-    /// la civilización dueña de ese territorio.
-    /// Si gana, el territorio pasa a ser "Conquistado".
     public class TerritorioModel
     {
-        public int Id { get; set; }
-        public string Nombre { get; set; }
+        // ATRIBUTOS PRIVADOS (-):
+        private string imperio;
+        private float coordenada;
+        private EstadoTerritorio estadoActual;
 
-        // Civilización que defiende este territorio (el oponente en batalla)
-        public Civilizacion CivilizacionDuena { get; set; }
+        private CivilizacionModel civilizacion;
 
-        // Estado actual del territorio
-        public EstadoTerritorio Estado { get; set; }
-
-        // Posición en el mapa mundial (para saber dónde dibujarlo en pantalla)
-        public float PosicionX { get; set; }
-        public float PosicionY { get; set; }
-
-        // ¿Se puede atacar ahora?
-        // Solo los territorios Neutral o adyacentes a uno conquistado son atacables
-        public bool EsAtacable { get; set; }
-
-        public bool EsConquistado => Estado == EstadoTerritorio.Conquistado;
-        public bool EsBase        => Estado == EstadoTerritorio.Base;
-
-        public TerritorioModel(int id, string nombre, Civilizacion civ,
-                               float x, float y,
-                               EstadoTerritorio estado = EstadoTerritorio.Neutral)
+        // --- PROPIEDADES PÚBLICAS ---
+        // (Permiten leer o modificar los datos desde los Controladores)
+        public string Imperio
         {
-            Id                 = id;
-            Nombre             = nombre;
-            CivilizacionDuena  = civ;
-            PosicionX          = x;
-            PosicionY          = y;
-            Estado             = estado;
-            EsAtacable         = (estado == EstadoTerritorio.Neutral);
+            get { return imperio; }
+            set { imperio = value; }
+        }
+
+        public float Coordenada
+        {
+            get { return coordenada; }
+            set { coordenada = value; }
+        }
+
+        public CivilizacionModel Civilizacion
+        {
+            get { return civilizacion; }
+            set { civilizacion = value; }
+        }
+
+        // --- CONSTRUCTOR ---
+        public TerritorioModel(float coordenada, string imperio = "Ninguno", EstadoTerritorio estadoInicial = EstadoTerritorio.Neutral, CivilizacionModel civilizacion = null)
+        {
+            this.coordenada = coordenada;
+            this.imperio = imperio;
+            this.estadoActual = estadoInicial;
+            this.civilizacion = civilizacion;
+        }
+
+        public EstadoTerritorio Estado()
+        {
+            return estadoActual;
+        }
+
+        // Conquista:
+        public void ConquistarTerritorio(string imperioConquistador)
+        {
+            // La base no debería cambiar a estado "Conquistado" de esta forma, solo se permite conquistar zonas neutrales o arrebatárselas a otro.
+            if (estadoActual == EstadoTerritorio.Neutral || estadoActual == EstadoTerritorio.Conquistado)
+            {
+                this.imperio = imperioConquistador;
+                this.estadoActual = EstadoTerritorio.Conquistado;
+            }
         }
     }
 }

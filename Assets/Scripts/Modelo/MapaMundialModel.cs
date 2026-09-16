@@ -3,94 +3,86 @@ using System.Linq;
 
 namespace ImperiosEnGuerra.Modelo
 {
-    /// Mapa mundial con todos los territorios/imperios disponibles para conquistar.
-    ///
-    /// Grecia empieza en su territorio base (centro/sur del mapa).
-    /// Los demás territorios pertenecen a otras civilizaciones.
-    /// El jugador gana cuando conquista TODOS los territorios.
+    /// Mapa mundial con todos los territorios disponibles para conquistar.
+    /// El jugador gana cuando conquista TODOS los territorios enemigos.
     public class MapaMundialModel
     {
-        public List<TerritorioModel> Territorios { get; private set; }
+        // ATRIBUTOS PRIVADOS (-)
+        private List<TerritorioModel> territorios;
+        private TerritorioModel territorioSeleccionado;
 
-        // El territorio que el jugador seleccionó para atacar
-        public TerritorioModel TerritorioSeleccionado { get; set; }
+        // PROPIEDADES PÚBLICAS
+        public List<TerritorioModel> Territorios
+        {
+            get { return territorios; }
+        }
 
-        // ¿El jugador ganó el juego completo?
+        // Territorio que el jugador seleccionó con clic
+        public TerritorioModel TerritorioSeleccionado
+        {
+            get { return territorioSeleccionado; }
+            set { territorioSeleccionado = value; }
+        }
+
+        // ¿El jugador conquistó todos los territorios enemigos?
         public bool JugadorGanoTodo =>
-            Territorios.All(t => t.EsBase || t.EsConquistado);
+            territorios.All(t => t.Estado() == EstadoTerritorio.Base ||
+                                 t.Estado() == EstadoTerritorio.Conquistado);
 
         public MapaMundialModel()
         {
-            Territorios = new List<TerritorioModel>();
+            territorios = new List<TerritorioModel>();
             InicializarTerritorios();
         }
 
-        /// Crea los territorios del mapa mundial con su posición y civilización dueña.
-        /// Las posiciones (x, y) son coordenadas de pantalla aproximadas.
-        /// La Vista las usará para colocar cada botón/icono en el mapa.
+        // Crea los territorios fijos del mapa con su civilización dueña
         private void InicializarTerritorios()
         {
-            // Territorio base de Grecia (ya controlado, no atacable)
-            Territorios.Add(new TerritorioModel(
-                id: 0,
-                nombre: "Grecia",
-                civ: Civilizacion.Grecia,
-                x: 500, y: 300,
-                estado: EstadoTerritorio.Base
+            // Territorio base de Grecia (no se puede atacar)
+            territorios.Add(new TerritorioModel(
+                coordenada: 500f,
+                imperio: "Grecia",
+                estadoInicial: EstadoTerritorio.Base,
+                civilizacion: new CivilizacionModel("Grecia")
             ));
 
-            // Territorios enemigos (neutrales al inicio)
-            Territorios.Add(new TerritorioModel(
-                id: 1,
-                nombre: "Persia",
-                civ: Civilizacion.Persia,
-                x: 700, y: 250
+            // Territorios enemigos (el jugador hace clic sobre ellos para atacar)
+            territorios.Add(new TerritorioModel(
+                coordenada: 700f,
+                imperio: "Persia",
+                civilizacion: new CivilizacionModel("Persia")
             ));
 
-            Territorios.Add(new TerritorioModel(
-                id: 2,
-                nombre: "Roma",
-                civ: Civilizacion.Roma,
-                x: 350, y: 220
+            territorios.Add(new TerritorioModel(
+                coordenada: 350f,
+                imperio: "Roma",
+                civilizacion: new CivilizacionModel("Roma")
             ));
 
-            Territorios.Add(new TerritorioModel(
-                id: 3,
-                nombre: "Egipto",
-                civ: Civilizacion.Egipto,
-                x: 550, y: 420
+            territorios.Add(new TerritorioModel(
+                coordenada: 550f,
+                imperio: "Egipto",
+                civilizacion: new CivilizacionModel("Egipto")
             ));
 
-            Territorios.Add(new TerritorioModel(
-                id: 4,
-                nombre: "Escandinavia",
-                civ: Civilizacion.Vikingos,
-                x: 420, y: 100
+            territorios.Add(new TerritorioModel(
+                coordenada: 420f,
+                imperio: "Vikingos",
+                civilizacion: new CivilizacionModel("Vikingos")
             ));
         }
 
-        /// Marca un territorio como conquistado después de ganar una batalla.
-        public void ConquistarTerritorio(int territorioId)
+        // El controlador llama este método pasando el territorio que la Vista detectó con el clic del jugador
+        public void SeleccionarTerritorio(TerritorioModel territorio)
         {
-            var territorio = Territorios.FirstOrDefault(t => t.Id == territorioId);
-            if (territorio != null)
-            {
-                territorio.Estado     = EstadoTerritorio.Conquistado;
-                territorio.EsAtacable = false;
-            }
+            territorioSeleccionado = territorio;
         }
 
-        /// Retorna solo los territorios que se pueden atacar:
-        public List<TerritorioModel> ObtenerAtacables()
+        // Conquista el territorio seleccionado (llamado al ganar una batalla):
+        public void ConquistarTerritorio(TerritorioModel territorio)
         {
-            return Territorios.Where(t => t.EsAtacable).ToList();
+            territorio.ConquistarTerritorio("Grecia");
         }
 
-
-        /// Retorna cuántos territorios enemigos quedan por conquistar:
-        public int TerritoriosRestantes()
-        {
-            return Territorios.Count(t => !t.EsBase && !t.EsConquistado); ///comprueba que no sea base y que no esté conquistado
-        }
     }
 }
