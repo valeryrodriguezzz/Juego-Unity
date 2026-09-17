@@ -1,18 +1,15 @@
 using System.Collections.Generic;
+using System.Threading;
 
 namespace ImperiosEnGuerra.Modelo
 {
     public enum EstadoPartida
     {
-        MapaMundial,  // El jugador está viendo el mapa y eligiendo territorio
-        EnBatalla,    // Combatiendo en un territorio (mapa 15x15)
-        Terminada     // Ganó o perdió el juego completo
+        MapaMundial, // El jugador está viendo el mapa y eligiendo territorio
+        EnBatalla,   // Combatiendo en un territorio
+        Terminada    // Ganó o perdió el juego completo
     }
 
-    /// Estado global de la partida completa.
-    ///
-    /// Contiene el mapa mundial (con todos los territorios)
-    /// y el estado de la batalla actual (cuando hay una activa).
     public class PartidaModel
     {
         // Estado general
@@ -24,51 +21,66 @@ namespace ImperiosEnGuerra.Modelo
         // El mapa mundial con todos los territorios
         public MapaMundialModel MapaMundial { get; set; }
 
-        // ── Batalla actual ─────────────────────────────────────────────
-        // Se llena cuando el jugador selecciona un territorio para atacar
-        public JugadorModel IA { get; set; }              // Oponente en la batalla actual
-        public MapaModel MapaBatalla { get; set; }        // Mapa 15x15 de la batalla
-        public TerritorioModel TerritorioEnDisputa { get; set; } // Qué territorio se está disputando
+        // Batalla actual:
+        public JugadorModel IA { get; set; }
+        public MapaModel MapaBatalla { get; set; }
+        public TerritorioModel TerritorioEnDisputa { get; set; }
 
-        // Resultado
+        // Resultado:
         public string NombreGanador { get; set; }
 
-        // Log de acciones (para log_partida.txt)
+        // Log de acciones: registro escrito de todo lo que pasa en la partida, como una bitácora. Se guarda en un archivo .txt 
         public List<string> LogAcciones { get; private set; } = new List<string>();
         public int NumeroTurno { get; set; } = 1;
 
+        // Hilos de Jugador e IA:
+        private Thread _hiloIA;
+        private bool _batallaActiva = false;
+
         public PartidaModel(string nombreJugador)
         {
-            // El jugador siempre es Grecia
-            Jugador     = new JugadorModel(nombreJugador, Civilizacion.Grecia, esIA: false);   
+            Jugador = new JugadorModel(nombreJugador, new CivilizacionModel("Grecia"), esIA: false);
             MapaMundial = new MapaMundialModel();
         }
 
-        /// Inicia una batalla contra el territorio seleccionado.
-        /// Crea al oponente IA con la civilización de ese territorio.
         public void IniciarBatalla(TerritorioModel territorio)
         {
             TerritorioEnDisputa = territorio;
-            Estado              = EstadoPartida.EnBatalla;
-            MapaBatalla         = new MapaModel();
+            Estado = EstadoPartida.EnBatalla;
+            MapaBatalla = new MapaModel();
+            _batallaActiva = true;
 
-            // El oponente es la civilización dueña del territorio
-            string nombreIA = CivilizacionInfo.NombreEdificioPrincipal(territorio.CivilizacionDuena);
             IA = new JugadorModel(
-                nombre: territorio.Nombre,
-                civilizacion: territorio.CivilizacionDuena,
+                nombre: territorio.Imperio,
+                civilizacion: territorio.Civilizacion,
                 esIA: true
             );
 
             NumeroTurno = 1;
+
+            // Hilo de la IA — toma decisiones automáticamente:
+            _hiloIA = new Thread(TurnoIA);
+            _hiloIA.IsBackground = true;
+            _hiloIA.Start();
         }
 
-        /// Termina la batalla actual. Si ganó el jugador, conquista el territorio.
+        // Lo que hace la IA en segundo plano durante la batalla:
+        private void TurnoIA()
+        {
+            while (_batallaActiva)
+            {
+                Thread.Sleep(2000); // La IA actúa cada 2 segundos
+                // Aquí el Controlador de IA decidirá qué hacer: mover unidades, atacar, recolectar recursos
+            }
+        }
+
         public void TerminarBatalla(bool jugadorGano)
         {
+            _batallaActiva = false; // Detiene el hilo de la IA
+
             if (jugadorGano && TerritorioEnDisputa != null)
             {
-                MapaMundial.ConquistarTerritorio(TerritorioEnDisputa.Id);
+                MapaMundial.ConquistarTerritorio(TerritorioEnDisputa);
                 NombreGanador = Jugador.Nombre;
             }
             else
@@ -78,16 +90,14 @@ namespace ImperiosEnGuerra.Modelo
 
             // ¿Ganó el juego completo?
             Estado = MapaMundial.JugadorGanoTodo
-                ? EstadoPartida.Terminada
-                : EstadoPartida.MapaMundial; // Vuelve al mapa mundial
+                ? EstadoPartida.Terminada   // ganó todo → juego terminado
+                : EstadoPartida.MapaMundial; // aún quedan territorios → vuelve al mapa
 
-            // Limpiar batalla
-            IA                  = null;
-            MapaBatalla         = null;
+            IA = null;
+            MapaBatalla = null;
             TerritorioEnDisputa = null;
         }
 
-        /// Registra una acción en el log (para log_partida.txt).
         public void RegistrarAccion(string quienJuega, string accion, string resultado)
         {
             string linea = $"Turno {NumeroTurno} | {quienJuega}\n" +
@@ -96,12 +106,20 @@ namespace ImperiosEnGuerra.Modelo
             LogAcciones.Add(linea);
         }
 
-        /// Verifica si hay ganador en la batalla actual.
         public bool VerificarGanadorBatalla()
         {
-            if (Jugador.Perdio)      { TerminarBatalla(jugadorGano: false); return true; }
-            if (IA != null && IA.Perdio) { TerminarBatalla(jugadorGano: true);  return true; }
-            return false;
+            if (Jugador.Perdio)
+            {
+                TerminarBatalla(false);
+                return true;
+            }
+
+            if (IA != null && IA.Perdio)
+            { 
+                TerminarBatalla(true);
+                return true;
+            }
+            return false; // nadie perdió todavía → la batalla continúa
         }
     }
 }

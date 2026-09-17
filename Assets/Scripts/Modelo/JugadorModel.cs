@@ -5,61 +5,175 @@ namespace ImperiosEnGuerra.Modelo
 {
     public class JugadorModel
     {
-        public string Nombre { get; set; }
-        public bool EsIA { get; set; }
-        public Civilizacion Civilizacion { get; set; }
+        // ATRIBUTOS PRIVADOS (-)
+        private string nombre;
+        private string rol;
+        private CivilizacionModel civilizacion;
+        private int vida;
+        private int vidaMax;
+        private int oro;
+        private int madera;
+        private int comida;
+        private int armas;
+        private int nivel;
+        private int nivelFuerza;
+        private bool esIA;
 
-        // ── Recursos ──────────────────────────────────────────────────
-        // Se generan automáticamente mediante hilos en RecursoController
-        public int Oro { get; set; } = 200;
-        public int Madera { get; set; } = 150;
-        public int Comida { get; set; } = 100;
-        public int Armas { get; set; } = 0;
+        // --- PROPIEDADES PÚBLICAS ---
+        public string Nombre
+        {
+            get { return nombre; }
+            set { nombre = value; }
+        }
 
-        // ── Unidades y Edificios ───────────────────────────────────────
+        public string Rol
+        {
+            get { return rol; }
+            set { rol = value; }
+        }
+
+        public CivilizacionModel Civilizacion
+        {
+            get { return civilizacion; }
+            set { civilizacion = value; }
+        }
+
+        public int Vida
+        {
+            get { return vida; }
+            set { vida = value; }
+        }
+
+        public int VidaMax
+        {
+            get { return vidaMax; }
+            set { vidaMax = value; }
+        }
+
+        public int Oro
+        {
+            get { return oro; }
+            set { oro = value; }
+        }
+
+        public int Madera
+        {
+            get { return madera; }
+            set { madera = value; }
+        }
+
+        public int Comida
+        {
+            get { return comida; }
+            set { comida = value; }
+        }
+
+        public int Armas
+        {
+            get { return armas; }
+            set { armas = value; }
+        }
+
+        public int Nivel
+        {
+            get { return nivel; }
+            set { nivel = value; }
+        }
+
+        public int NivelFuerza
+        {
+            get { return nivelFuerza; }
+            set { nivelFuerza = value; }
+        }
+
+        public bool EsIA
+        {
+            get { return esIA; }
+            set { esIA = value; }
+        }
+
+        // Unidades y Edificios del jugador
         public List<UnidadModel> Unidades { get; set; } = new List<UnidadModel>();
         public List<EdificioModel> Edificios { get; set; } = new List<EdificioModel>();
-
-        // El edificio principal — si cae, el jugador pierde
         public EdificioModel EdificioPrincipal { get; set; }
 
-        // ── Estado ────────────────────────────────────────────────────
         public bool Perdio => EdificioPrincipal == null || !EdificioPrincipal.EstaEnPie;
 
-        public JugadorModel(string nombre, Civilizacion civilizacion, bool esIA = false)
+        // --- CONSTRUCTOR ---
+        public JugadorModel(string nombre, CivilizacionModel civilizacion, bool esIA = false)
         {
-            Nombre = nombre;
-            Civilizacion = civilizacion;
-            EsIA = esIA;
+            this.nombre = nombre;
+            this.civilizacion = civilizacion;
+            this.esIA = esIA;
+            this.vida = 100;
+            this.vidaMax = 100;
+            this.oro = 200;  // Empieza con 200 de oro
+            this.madera = 150;
+            this.comida = 100;
+            this.armas = 0;
+            this.nivel = 1;
+            this.nivelFuerza = 10;
         }
 
-        public bool TieneRecursos(int oro = 0, int madera = 0,
-                                  int comida = 0, int armas = 0)
+        // MÉTODOS:
+
+        // El Controlador implementa la lógica completa
+
+        public void Atacar(JugadorModel objetivo)
         {
-            return Oro >= oro &&
-                   Madera >= madera &&
-                   Comida >= comida &&
-                   Armas >= armas;
+            // Reduce la vida del objetivo según NivelFuerza
+            objetivo.Vida -= nivelFuerza;
         }
 
-        public void GastarRecursos(int oro = 0, int madera = 0,
+        public void Movimiento(int nuevaFila, int nuevaColumna)
+        {
+            // El Controlador valida y mueve el personaje en el mapa
+        }
+
+        public void Conseguir_Recursos(string tipoRecurso, int cantidad)
+        {
+            // Llamado por el hilo de recolección cuando produce recursos
+            switch (tipoRecurso)
+            {
+                case "Oro": oro += cantidad; break;
+                case "Madera": madera += cantidad; break;
+                case "Comida": comida += cantidad; break;
+            }
+        }
+
+        public void Curarse(int cantidad)
+        {
+            vida += cantidad;
+            if (vida > vidaMax) vida = vidaMax; // No supera el máximo
+        }
+
+        public void Construir()
+        {
+            // El Controlador valida si tiene recursos y construye
+        }
+
+        public void Gasto_Recursos(int monedas = 0, int madera = 0,
+                                    int comida = 0, int armas = 0)
+        {
+            this.oro -= monedas;
+            this.madera -= madera;
+            this.comida -= comida;
+            this.armas -= armas;
+        }
+
+        public bool TieneRecursos(int monedas = 0, int madera = 0,
                                    int comida = 0, int armas = 0)
         {
-            Oro -= oro;
-            Madera -= madera;
-            Comida -= comida;
-            Armas -= armas;
+            return this.oro >= monedas &&
+                   this.madera >= madera &&
+                   this.comida >= comida &&
+                   this.armas >= armas;
         }
 
-        public void AgregarRecurso(TipoRecurso tipo, int cantidad)
+        public override bool Equals(object obj)
         {
-            switch (tipo)
-            {
-                case TipoRecurso.Oro: Oro += cantidad; break;
-                case TipoRecurso.Madera: Madera += cantidad; break;
-                case TipoRecurso.Comida: Comida += cantidad; break;
-                case TipoRecurso.Armas: Armas += cantidad; break;
-            }
+            return obj is JugadorModel model &&
+                   oro == model.oro;
         }
     }
 }
