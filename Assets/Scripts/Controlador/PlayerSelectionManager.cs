@@ -1,5 +1,6 @@
 using UnityEngine;
 using ImperiosEnGuerra.Modelo;
+using ImperiosEnGuerra.Modelo.Armas;
 
 // Puente que sobrevive entre escenas (Menu -> Seleccion -> Juego).
 // Guarda la PartidaModel completa + el INDICE del avatar elegido
@@ -40,8 +41,14 @@ public class PlayerSelectionManager : MonoBehaviour
         AvatarIndex = avatarIndex;
         Partida = new PartidaModel(nombreJugador);
 
+        // <-- AGREGAR estas dos lineas, con la Partida ya creada
+        TipoPersonaje personaje = PersonajeInfo.DesdeAvatarIndex(avatarIndex);
+        Partida.Jugador.Rol = PersonajeInfo.ARol(personaje);
+
         Debug.Log("Partida creada. Jugador: " + Partida.Jugador.Nombre +
                    " (Civilizacion: " + Partida.Jugador.Civilizacion +
+                   ", Rol: " + Partida.Jugador.Rol +
                    ", AvatarIndex: " + avatarIndex + ")");
     }
+
 }

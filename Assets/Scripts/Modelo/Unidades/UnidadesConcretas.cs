@@ -10,10 +10,10 @@ namespace ImperiosEnGuerra.Modelo.Unidades
 
     public class UnidadMeleeModel : UnidadModel
     {
-        public UnidadMeleeModel(Civilizacion civilizacion)
+        public UnidadMeleeModel(string civilizacion)
         {
             // El nombre depende de la civilización
-            Nombre          = CivilizacionInfo.NombreUnidadMelee(civilizacion);
+            Nombre          = CivilizacionInfo.NombreUnidadMelee(civilizacion); //No se que se deba cambiar aca
 
             // Estadísticas iguales para todas las civilizaciones
             Vida            = 120;
@@ -31,9 +31,9 @@ namespace ImperiosEnGuerra.Modelo.Unidades
 
     public class UnidadRangoModel : UnidadModel
     {
-        public UnidadRangoModel(Civilizacion civilizacion)
+        public UnidadRangoModel(string civilizacion)
         {
-            Nombre          = CivilizacionInfo.NombreUnidadRango(civilizacion);
+            Nombre          = CivilizacionInfo.NombreUnidadRango(civilizacion);//No se que se deba cambiar aca
 
             Vida            = 70;
             VidaMax         = 70;

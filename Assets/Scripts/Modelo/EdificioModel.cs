@@ -24,7 +24,7 @@ namespace ImperiosEnGuerra.Modelo
 
         // Producción de recursos (si aplica)
         // El RecursoController usa estos campos para saber qué producir
-        public TipoRecurso? RecursoQueProduce { get; protected set; } = null;
+        public string RecursoProductor { get; protected set; } = null;  // null si no produce recursos
         public int ProduccionPorSegundo { get; protected set; } = 0;
 
         // ¿Es del jugador o de la IA?

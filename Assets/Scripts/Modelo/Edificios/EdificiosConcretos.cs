@@ -21,7 +21,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 0;
             CostoOro               = 0;
             CostoMadera            = 0;
-            RecursoQueProduce      = null;  // No produce recursos
+            RecursoProductor      = null;  // No produce recursos
             ProduccionPorSegundo   = 0;
         }
     }
@@ -40,7 +40,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 20;
             CostoOro               = 120;
             CostoMadera            = 80;
-            RecursoQueProduce      = null;
+            RecursoProductor = null;
             ProduccionPorSegundo   = 0;
         }
     }
@@ -59,7 +59,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 15;
             CostoOro               = 50;
             CostoMadera            = 100;
-            RecursoQueProduce      = TipoRecurso.Comida;  // ← Produce Comida
+            RecursoProductor       = "Comida";  // ← Produce Comida
             ProduccionPorSegundo   = 5;
         }
     }
@@ -79,7 +79,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 25;
             CostoOro               = 150;
             CostoMadera            = 120;
-            RecursoQueProduce      = TipoRecurso.Armas;   // ← Produce Armas
+            RecursoProductor       = "Armas";   // ← Produce Armas
             ProduccionPorSegundo   = 3;
         }
     }
@@ -98,7 +98,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 18;
             CostoOro               = 0;     // No cuesta Oro (lógico)
             CostoMadera            = 80;
-            RecursoQueProduce      = TipoRecurso.Oro;     // ← Produce Oro
+            RecursoProductor       = "Oro";     // ← Produce Oro
             ProduccionPorSegundo   = 4;
         }
     }
@@ -117,7 +117,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 18;
             CostoOro               = 40;
             CostoMadera            = 0;     // No cuesta Madera (lógico)
-            RecursoQueProduce      = TipoRecurso.Madera;  // ← Produce Madera
+            RecursoProductor       = "Madera";  // ← Produce Madera
             ProduccionPorSegundo   = 4;
         }
     }
@@ -140,7 +140,7 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 0;
             CostoOro               = 0;
             CostoMadera            = 0;
-            RecursoQueProduce      = null;
+            RecursoProductor = null;
             ProduccionPorSegundo   = 0;
         }
     }
