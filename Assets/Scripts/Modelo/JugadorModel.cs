@@ -180,13 +180,6 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        // [6] NUEVO: version con enum, para no depender de strings sueltos.
-        // Hace exactamente lo mismo que Conseguir_Recursos.
-        public void AgregarRecurso(TipoRecurso tipo, int cantidad)
-        {
-            Conseguir_Recursos(RecursoTipoHelper.ATexto(tipo), cantidad);
-        }
-
         public void Curarse(int cantidad)
         {
             lock (_lock)

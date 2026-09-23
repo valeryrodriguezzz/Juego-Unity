@@ -2,41 +2,130 @@ namespace ImperiosEnGuerra.Modelo
 {
     public abstract class EdificioModel
     {
-        public int Id { get; set; }
-        public string Nombre { get; set; }
+        // ATRIBUTOS PRIVADOS (-)
+        private string imperio;
+        private int id;
+        private string nombre;
+        private int vida;
+        private int vidaMax;
+        private int fila;
+        private int columna;
+        private bool construido;
+        private float porcentajeConstruccion;
+        private float tiempoConstruccionSeg;
+        private int costoOro;
+        private int costoMadera;
+        private string recursoQueProduce;
+        private int produccionPorSegundo;
+        private bool esDeJugador;
 
-        // Vida del edificio
-        public int Vida { get; set; }
-        public int VidaMax { get; set; }
-
-        // Posición en el mapa
-        public int Fila { get; set; }
-        public int Columna { get; set; }
-
-        // Estado de construcción
-        public bool Construido { get; set; }
-        public float PorcentajeConstruccion { get; set; }   // 0 a 100
-        public int TiempoConstruccionSeg { get; protected set; }
-
-        // Costos para construirlo
-        public int CostoOro { get; protected set; }
-        public int CostoMadera { get; protected set; }
-
-        // Producción de recursos (si aplica)
-        // El RecursoController usa estos campos para saber qué producir
-        public string RecursoProductor { get; protected set; } = null;  // null si no produce recursos
-        public int ProduccionPorSegundo { get; protected set; } = 0;
-
-        // ¿Es del jugador o de la IA?
-        public bool EsDeJugador { get; set; }
-
-        public bool EstaEnPie => Vida > 0;
-
-        public bool RecibirDanio(int danio)
+        // PROPIEDADES PÚBLICAS (+)
+        public string Imperio
         {
-            Vida -= danio;
-            if (Vida < 0) Vida = 0;
-            return !EstaEnPie;
+            get { return imperio; }
+            set { imperio = value; }
+        }
+
+        public int Id
+        {
+            get { return id; }
+            set { id = value; }
+        }
+
+        public string Nombre
+        {
+            get { return nombre; }
+            set { nombre = value; }
+        }
+
+        public int Vida
+        {
+            get { return vida; }
+            set { vida = value; }
+        }
+
+        public int VidaMax
+        {
+            get { return vidaMax; }
+            set { vidaMax = value; }
+        }
+
+        public int Fila
+        {
+            get { return fila; }
+            set { fila = value; }
+        }
+
+        public int Columna
+        {
+            get { return columna; }
+            set { columna = value; }
+        }
+
+        public bool Construido
+        {
+            get { return construido; }
+            set { construido = value; }
+        }
+
+        public float PorcentajeConstruccion
+        {
+            get { return porcentajeConstruccion; }
+            set { porcentajeConstruccion = value; }
+        }
+
+        public float TiempoConstruccionSeg
+        {
+            get { return tiempoConstruccionSeg; }
+            protected set { tiempoConstruccionSeg = value; }
+        }
+
+        public int CostoOro
+        {
+            get { return costoOro; }
+            protected set { costoOro = value; }
+        }
+
+        public int CostoMadera
+        {
+            get { return costoMadera; }
+            protected set { costoMadera = value; }
+        }
+
+        public string RecursoQueProduce
+        {
+            get { return recursoQueProduce; }
+            protected set { recursoQueProduce = value; }
+        }
+
+        public int ProduccionPorSegundo
+        {
+            get { return produccionPorSegundo; }
+            protected set { produccionPorSegundo = value; }
+        }
+
+        public bool EsDeJugador
+        {
+            get { return esDeJugador; }
+            set { esDeJugador = value; }
+        }
+
+        // Propiedad calculada — true si el edificio sigue en pie:
+        public bool EstaEnPie => vida > 0;
+
+        // --- MÉTODOS (+) ---
+
+        public virtual void Construccion()    // Marca el edificio como construido
+        {
+            construido = true;
+            porcentajeConstruccion = 100f;
+        }
+
+        public bool Destruccion(int daño)
+        {
+            vida -= daño;
+            if (vida < 0) vida = 0;
+            return !EstaEnPie;  // true si el edificio fue destruido
         }
     }
 }

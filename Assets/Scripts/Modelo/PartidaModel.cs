@@ -21,21 +21,27 @@ namespace ImperiosEnGuerra.Modelo
         // El mapa mundial con todos los territorios
         public MapaMundialModel MapaMundial { get; set; }
 
-        // Batalla actual:
+        // Batalla actual
         public JugadorModel IA { get; set; }
         public MapaModel MapaBatalla { get; set; }
         public TerritorioModel TerritorioEnDisputa { get; set; }
 
-        // Resultado:
+        // Resultado
         public string NombreGanador { get; set; }
 
-        // Log de acciones: registro escrito de todo lo que pasa en la partida, como una bitácora. Se guarda en un archivo .txt 
+        // Log de acciones: guarda lo que pasa en la partida
         public List<string> LogAcciones { get; private set; } = new List<string>();
         public int NumeroTurno { get; set; } = 1;
 
-        // Hilos de Jugador e IA:
+        // Hilos de Jugador e IA (maquina)
         private Thread _hiloIA;
+        private Thread _hiloJugador;
         private bool _batallaActiva = false;
+        private readonly object _lock = new object();
+
+        // Señal que activa el hilo del jugador cuando hace una acción
+        private ManualResetEventSlim _accionJugador
+            = new ManualResetEventSlim(false);
 
         public PartidaModel(string nombreJugador)
         {
@@ -58,25 +64,71 @@ namespace ImperiosEnGuerra.Modelo
 
             NumeroTurno = 1;
 
-            // Hilo de la IA — toma decisiones automáticamente:
+            // Hilo del Jugador — espera que el jugador haga clic en "Atacar"
+            _hiloJugador = new Thread(TurnoJugador);
+            _hiloJugador.IsBackground = true;
+            _hiloJugador.Start();
+
+            // Hilo de la IA — ataca automáticamente cada 2 segundos
             _hiloIA = new Thread(TurnoIA);
             _hiloIA.IsBackground = true;
             _hiloIA.Start();
         }
 
-        // Lo que hace la IA en segundo plano durante la batalla:
+        // Hilo del Jugador:
+        // Espera la señal (clic en "Atacar"), ataca y vuelve a esperar
+        private void TurnoJugador()
+        {
+            while (_batallaActiva)
+            {
+                _accionJugador.Wait();    // Duerme hasta que el jugador haga clic
+                _accionJugador.Reset();   // Reinicia la señal para la próxima vez
+
+                if (!_batallaActiva) break;
+
+                lock (_lock)
+                {
+                    IA.Vida -= Jugador.NivelFuerza;
+                    if (IA.Vida < 0) IA.Vida = 0;
+
+                    if (IA.Vida <= 0)
+                        TerminarBatalla(jugadorGano: true);
+                }
+            }
+        }
+
+        // Hilo de la IA:
+        // Actúa sola cada 2 segundos, sin esperar nada
         private void TurnoIA()
         {
             while (_batallaActiva)
             {
-                Thread.Sleep(2000); // La IA actúa cada 2 segundos
-                // Aquí el Controlador de IA decidirá qué hacer: mover unidades, atacar, recolectar recursos
+                Thread.Sleep(2000); // La IA ataca cada 2 segundos
+
+                lock (_lock)
+                {
+                    if (!_batallaActiva) break;
+
+                    Jugador.Vida -= IA.NivelFuerza;
+                    if (Jugador.Vida < 0) Jugador.Vida = 0;
+
+                    if (Jugador.Vida <= 0)
+                        TerminarBatalla(jugadorGano: false);
+                }
             }
+        }
+
+        // La Vista llama este método cuando el jugador hace clic en "Atacar"
+        // → despierta el hilo del jugador
+        public void JugadorAtaca()
+        {
+            _accionJugador.Set();
         }
 
         public void TerminarBatalla(bool jugadorGano)
         {
-            _batallaActiva = false; // Detiene el hilo de la IA
+            _batallaActiva = false;      // Detiene ambos hilos
+            _accionJugador.Set();        // Despierta el hilo del jugador para que pueda terminar
 
             if (jugadorGano && TerritorioEnDisputa != null)
             {
@@ -88,10 +140,9 @@ namespace ImperiosEnGuerra.Modelo
                 NombreGanador = IA?.Nombre;
             }
 
-            // ¿Ganó el juego completo?
             Estado = MapaMundial.JugadorGanoTodo
-                ? EstadoPartida.Terminada   // ganó todo → juego terminado
-                : EstadoPartida.MapaMundial; // aún quedan territorios → vuelve al mapa
+                ? EstadoPartida.Terminada
+                : EstadoPartida.MapaMundial;
 
             IA = null;
             MapaBatalla = null;
@@ -108,18 +159,9 @@ namespace ImperiosEnGuerra.Modelo
 
         public bool VerificarGanadorBatalla()
         {
-            if (Jugador.Perdio)
-            {
-                TerminarBatalla(false);
-                return true;
-            }
-
-            if (IA != null && IA.Perdio)
-            { 
-                TerminarBatalla(true);
-                return true;
-            }
-            return false; // nadie perdió todavía → la batalla continúa
+            if (Jugador.Perdio) { TerminarBatalla(false); return true; }
+            if (IA != null && IA.Perdio) { TerminarBatalla(true); return true; }
+            return false;
         }
     }
 }
