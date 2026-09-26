@@ -3,12 +3,16 @@ namespace ImperiosEnGuerra.Modelo.Edificios
     // ═══════════════════════════════════════════════════════════════════
     //  EDIFICIOS DE GRECIA
     //
-    //  Cada edificio productor tiene un hilo asociado en RecursoController
-    //  que le suma recursos al jugador cada cierto tiempo.
+    //  Cada edificio declara su costo, tiempo de construccion y (si es
+    //  productor) que recurso produce y cuanto por segundo.
+    //  Los HILOS estan en EdificioModel (Modelo): uno construye el edificio
+    //  y, al terminar, otro suma el recurso al jugador cada segundo.
+    //  Se usan con jugador.Construir(edificio). El Controlador solo lo pide
+    //  y llama jugador.DetenerEdificios() al cerrar.
     // ═══════════════════════════════════════════════════════════════════
 
-    /// Acrópolis: edificio principal de Grecia. Si es destruida, Grecia pierde la partida.
-    /// Comienza ya construida al inicio del juego.
+    // Acrópolis: edificio principal de Grecia. Si es destruida, Grecia pierde la partida.
+    // Comienza ya construida al inicio del juego.
     public class AcropolisModel : EdificioModel
     {
         public AcropolisModel()
@@ -21,13 +25,13 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 0;
             CostoOro               = 0;
             CostoMadera            = 0;
-            RecursoProductor      = null;  // No produce recursos
+            RecursoQueProduce      = "";   // No produce recursos
             ProduccionPorSegundo   = 0;
         }
     }
 
-    /// Cuartel: permite entrenar Hoplitas y Arqueros.
-    /// No produce recursos, pero es necesario para el ejército.
+    // Cuartel: permite entrenar unidades.
+    // No produce recursos, pero es necesario para el ejército.
     public class CuartelModel : EdificioModel
     {
         public CuartelModel()
@@ -40,13 +44,13 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 20;
             CostoOro               = 120;
             CostoMadera            = 80;
-            RecursoProductor = null;
+            RecursoQueProduce      = "";
             ProduccionPorSegundo   = 0;
         }
     }
 
-    /// Granja: produce Comida automáticamente.
-    /// HILO: suma Comida al jugador cada segundo.
+    // Granja: produce Comida automáticamente.
+    // HILO: suma Comida al jugador cada segundo.
     public class GranjaModel : EdificioModel
     {
         public GranjaModel()
@@ -59,14 +63,13 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 15;
             CostoOro               = 50;
             CostoMadera            = 100;
-            RecursoProductor       = "Comida";  // ← Produce Comida
+            RecursoQueProduce      = "Comida";
             ProduccionPorSegundo   = 5;
         }
     }
 
-    /// Armería: produce Armas automáticamente.
-    /// HILO: suma Armas al jugador cada segundo.
-    /// Las Armas son necesarias para entrenar Hoplitas y Arqueros.
+    // Armería: produce Armas automáticamente.
+    // HILO: suma Armas al jugador cada segundo.
     public class ArmeriaModel : EdificioModel
     {
         public ArmeriaModel()
@@ -79,13 +82,13 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             TiempoConstruccionSeg  = 25;
             CostoOro               = 150;
             CostoMadera            = 120;
-            RecursoProductor       = "Armas";   // ← Produce Armas
+            RecursoQueProduce      = "Armas";
             ProduccionPorSegundo   = 3;
         }
     }
 
-    /// Mina de Oro: produce Oro automáticamente.
-    /// HILO: suma Oro al jugador cada segundo.
+    // Mina de Oro: produce Oro automáticamente.
+    // HILO: suma Oro al jugador cada segundo.
     public class MinaModel : EdificioModel
     {
         public MinaModel()
@@ -96,15 +99,15 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             Construido             = false;
             PorcentajeConstruccion = 0f;
             TiempoConstruccionSeg  = 18;
-            CostoOro               = 0;     // No cuesta Oro (lógico)
+            CostoOro               = 0;
             CostoMadera            = 80;
-            RecursoProductor       = "Oro";     // ← Produce Oro
+            RecursoQueProduce      = "Oro";
             ProduccionPorSegundo   = 4;
         }
     }
 
-    /// Aserradero: produce Madera automáticamente.
-    /// HILO: suma Madera al jugador cada segundo.
+    // Aserradero: produce Madera automáticamente.
+    // HILO: suma Madera al jugador cada segundo.
     public class AserraderoModel : EdificioModel
     {
         public AserraderoModel()
@@ -116,32 +119,96 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             PorcentajeConstruccion = 0f;
             TiempoConstruccionSeg  = 18;
             CostoOro               = 40;
-            CostoMadera            = 0;     // No cuesta Madera (lógico)
-            RecursoProductor       = "Madera";  // ← Produce Madera
+            CostoMadera            = 0;
+            RecursoQueProduce      = "Madera";
             ProduccionPorSegundo   = 4;
         }
     }
 
+
+    //  IGLESIA (jugador)
+
+    // Iglesia: permite al jugador curarse (sin superar su VidaMax).
+    // Cada uso cuesta oro y tiene un tiempo de espera para que no sea curacion infinita.
+    // No necesita hilo: el jugador la usa con un boton. Es segura entre hilos porque Curarse y GastarSiAlcanza
+    // de JugadorModel ya son atomicos(se ejecuta por completo de principio a fin sin interrupciones, o no se ejecuta en absoluto).
+    public class IglesiaModel : EdificioModel
+    {
+        private readonly object _lock = new object();
+        private System.DateTime _ultimoUso = System.DateTime.MinValue;
+
+        public int CuracionPorUso { get; private set; }
+        public int CostoOroPorUso { get; private set; }
+        public int EsperaSeg { get; private set; }
+
+        public IglesiaModel()
+        {
+            Nombre                 = "Iglesia";
+            Vida                   = 250;
+            VidaMax                = 250;
+            Construido             = false;
+            PorcentajeConstruccion = 0f;
+            TiempoConstruccionSeg  = 20;
+            CostoOro               = 100;
+            CostoMadera            = 60;
+            RecursoQueProduce      = "";
+            ProduccionPorSegundo   = 0;
+
+            CuracionPorUso = 30;
+            CostoOroPorUso = 20;
+            EsperaSeg      = 10;
+        }
+
+        // Segundos que faltan para poder usarla otra vez (0 = disponible)
+        public double SegundosParaPoderUsar()
+        {
+            lock (_lock)
+            {
+                double faltan = EsperaSeg - (System.DateTime.UtcNow - _ultimoUso).TotalSeconds;
+                return faltan > 0 ? faltan : 0;
+            }
+        }
+
+        // Cura al jugador. Devuelve false si no esta construida, sigue en espera,
+        // el jugador ya tiene la vida completa o no le alcanza el oro.
+        public bool Curar(JugadorModel jugador)
+        {
+            if (jugador == null || !Construido) return false;
+
+            lock (_lock)
+            {
+                if ((System.DateTime.UtcNow - _ultimoUso).TotalSeconds < EsperaSeg) return false;
+                if (jugador.Vida >= jugador.VidaMax) return false;
+                if (!jugador.GastarSiAlcanza(monedas: CostoOroPorUso)) return false;
+
+                jugador.Curarse(CuracionPorUso);
+                _ultimoUso = System.DateTime.UtcNow;
+                return true;
+            }
+        }
+    }
+
     // ═══════════════════════════════════════════════════
-    //  EDIFICIO DEL IMPERIO PERSA (IA)
+    //  EDIFICIO PRINCIPAL DE LA IA (cualquier territorio)
     // ═══════════════════════════════════════════════════
 
-    /// Palacio Persa: Centro Urbano de la IA.
-    /// Si es destruido, la IA pierde.
-    public class PalacioPersaModel : EdificioModel
+    // Centro Urbano generico de la IA. Su nombre y su vida dependen del territorio
+    // (ver TerritorioModel). Si es destruido, el jugador conquista el territorio.
+    public class CentroUrbanoModel : EdificioModel
     {
-        public PalacioPersaModel()
+        public CentroUrbanoModel(string nombre, int vida)
         {
-            Nombre                 = "Palacio Persa";
-            Vida                   = 600;
-            VidaMax                = 600;
+            Nombre                 = nombre;
+            Vida                   = vida;
+            VidaMax                = vida;
             Construido             = true;
             PorcentajeConstruccion = 100f;
             TiempoConstruccionSeg  = 0;
             CostoOro               = 0;
             CostoMadera            = 0;
-            RecursoProductor = null;
+            RecursoQueProduce      = "";
             ProduccionPorSegundo   = 0;
         }
     }
 }
+

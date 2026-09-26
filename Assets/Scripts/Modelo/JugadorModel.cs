@@ -1,25 +1,20 @@
+using System;
 using System.Collections.Generic;
 using ImperiosEnGuerra.Modelo.Edificios;
 
 namespace ImperiosEnGuerra.Modelo
 {
     /// ===================================================================
-    ///  VERSION REVISADA de JugadorModel. Cambios marcados [1]..[8].
-    ///
-    ///  LA API PUBLICA NO CAMBIO: mismos nombres, mismas firmas, mismos
-    ///  setters publicos, mismo constructor. Todo lo que Valery ya escribio
-    ///  sigue compilando igual. Los cambios son por dentro.
-    ///
-    ///  POR QUE: los recursos los tocan varios hilos a la vez (el hilo de
+    /// los recursos los tocan varios hilos a la vez (el hilo de
     ///  regeneracion de cada nodo, el jugador recolectando, la tienda
     ///  cobrando, y mas adelante el hilo de la IA). Sin lock, dos hilos leen
     ///  el mismo valor, cada uno le suma lo suyo y el ultimo pisa al otro:
     ///  se pierden recursos sin que nadie se entere. Es el error clasico de
-    ///  "leer-modificar-escribir" y es justo lo que la materia esta evaluando.
+    ///  "leer-modificar-escribir".
     /// ===================================================================
     public class JugadorModel
     {
-        // [1] NUEVO: un solo candado para todo el estado numerico del jugador.
+        // Un solo candado para todo el estado numerico del jugador.
         // Uno solo y no uno por recurso, porque asi se puede cobrar
         // "30 oro y 10 madera" de forma atomica (todo o nada). Con cuatro
         // candados separados eso seria imposible.
@@ -58,7 +53,7 @@ namespace ImperiosEnGuerra.Modelo
             set { civilizacion = value; }
         }
 
-        // [2] CAMBIO: Vida con lock. Cuando el combate corra en su propio hilo
+        // Vida con lock. Cuando el combate corra en su propio hilo
         // (la IA atacando), dos golpes simultaneos sin lock restan uno solo.
         public int Vida
         {
@@ -72,7 +67,7 @@ namespace ImperiosEnGuerra.Modelo
             set { lock (_lock) { vidaMax = value; } }
         }
 
-        // [3] CAMBIO: los cuatro recursos con lock. La firma es la misma de
+        // Los cuatro recursos con lock. La firma es la misma de
         // antes, asi que cualquier codigo que hiciera jugador.Oro sigue igual.
         public int Oro
         {
@@ -121,7 +116,8 @@ namespace ImperiosEnGuerra.Modelo
         public List<EdificioModel> Edificios { get; set; } = new List<EdificioModel>();
         public EdificioModel EdificioPrincipal { get; set; }
 
-        public bool Perdio => EdificioPrincipal == null || !EdificioPrincipal.EstaEnPie;
+        // Regla del juego: se pierde unicamente al quedarse sin vida.
+        public bool Perdio => Vida <= 0;
 
         // --- CONSTRUCTOR ---
         public JugadorModel(string nombre, CivilizacionModel civilizacion, bool esIA = false)
@@ -143,7 +139,7 @@ namespace ImperiosEnGuerra.Modelo
 
         // El Controlador implementa la lógica completa
 
-        // [4] CAMBIO: el descuento va dentro del lock del objetivo.
+        // El descuento va dentro del lock del objetivo.
         public void Atacar(JugadorModel objetivo)
         {
             // Reduce la vida del objetivo según NivelFuerza
@@ -156,13 +152,6 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        public void Movimiento(int nuevaFila, int nuevaColumna)
-        {
-            // El Controlador valida y mueve el personaje en el mapa
-        }
-
-        // [5] CAMBIO: con lock, tolerante a mayusculas/minusculas, y ahora si
-        // reconoce "Armas" (antes se perdian silenciosamente).
         public void Conseguir_Recursos(string tipoRecurso, int cantidad)
         {
             // Llamado por el hilo de recolección cuando produce recursos
@@ -189,9 +178,49 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        public void Construir()
+        // Se dispara desde el hilo de construccion del edificio (NO el principal de Unity)
+        public event Action<EdificioModel> OnEdificioConstruido;
+
+        // Construye un edificio: cobra el costo (oro y madera, todo o nada) y arranca su
+        // hilo de construccion dentro del modelo. Devuelve false si no alcanzan los recursos
+        // o el edificio ya esta construido / en construccion.
+        public bool Construir(EdificioModel edificio)
         {
-            // El Controlador valida si tiene recursos y construye
+            if (edificio == null) return false;
+
+            // Suscribirse ANTES de iniciar, por si el edificio termina al instante
+            edificio.OnConstruccionTerminada += AlTerminarConstruccion;
+
+            if (!edificio.IniciarConstruccion(this))
+            {
+                edificio.OnConstruccionTerminada -= AlTerminarConstruccion;
+                return false;
+            }
+
+            edificio.EsDeJugador = !esIA;
+            lock (_lock)
+            {
+                if (!Edificios.Contains(edificio)) Edificios.Add(edificio);
+            }
+            return true;
+        }
+
+        private void AlTerminarConstruccion(EdificioModel edificio)
+        {
+            OnEdificioConstruido?.Invoke(edificio);
+        }
+
+        // Copia de la lista, segura de recorrer aunque otro hilo agregue edificios
+        public List<EdificioModel> ObtenerEdificios()
+        {
+            lock (_lock) { return new List<EdificioModel>(Edificios); }
+        }
+
+        // Apaga los hilos de construccion y produccion de todos los edificios del jugador
+        public void DetenerEdificios()
+        {
+            foreach (var edificio in ObtenerEdificios())
+                edificio.Detener();
         }
 
         // [7] CAMBIO: con lock y sin dejar los recursos en negativo.
@@ -225,8 +254,7 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        // [8] NUEVO — ESTE ES EL METODO QUE NECESITA LA TIENDA.
-        //
+
         // Comprueba y cobra DENTRO del mismo lock, y devuelve si alcanzo.
         // Si no alcanza, no descuenta nada.
         //
@@ -254,7 +282,7 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        // [9] CAMBIO (opcional pero recomendado): el Equals anterior decia que
+        // El Equals anterior decia que
         // dos jugadores son el MISMO si tienen el mismo oro. Con eso, el jugador
         // y la IA se vuelven "iguales" en cuanto empatan en oro, y cualquier
         // lista.Contains(jugador) o Dictionary con jugadores da resultados

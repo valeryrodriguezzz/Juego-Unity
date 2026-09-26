@@ -50,25 +50,29 @@ namespace ImperiosEnGuerra.Modelo
             territorios.Add(new TerritorioModel(
                 coordenada: 700f,
                 imperio: "Persia",
-                civilizacion: new CivilizacionModel("Persia")
+                civilizacion: new CivilizacionModel("Persia"),
+                vidaIA: 150, fuerzaIA: 12, msEntreAtaquesIA: 1600, vidaCentroUrbano: 600 // jefe final
             ));
 
             territorios.Add(new TerritorioModel(
                 coordenada: 350f,
                 imperio: "Roma",
-                civilizacion: new CivilizacionModel("Roma")
+                civilizacion: new CivilizacionModel("Roma"),
+                vidaIA: 120, fuerzaIA: 10, msEntreAtaquesIA: 2000, vidaCentroUrbano: 500
             ));
 
             territorios.Add(new TerritorioModel(
                 coordenada: 550f,
                 imperio: "Egipto",
-                civilizacion: new CivilizacionModel("Egipto")
+                civilizacion: new CivilizacionModel("Egipto"),
+                vidaIA: 80, fuerzaIA: 6, msEntreAtaquesIA: 2500, vidaCentroUrbano: 300 // facil
             ));
 
             territorios.Add(new TerritorioModel(
                 coordenada: 420f,
                 imperio: "Vikingos",
-                civilizacion: new CivilizacionModel("Vikingos")
+                civilizacion: new CivilizacionModel("Vikingos"),
+                vidaIA: 100, fuerzaIA: 8, msEntreAtaquesIA: 2200, vidaCentroUrbano: 400
             ));
         }
 

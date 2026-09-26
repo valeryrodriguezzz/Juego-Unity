@@ -4,7 +4,7 @@ using System.Threading;
 
 namespace ImperiosEnGuerra.Modelo.Armas
 {
-    /// <summary>Por que salio bien o mal una compra. La UI muestra el mensaje segun esto.</summary>
+    /// Por que salio bien o mal una compra. La UI muestra el mensaje segun esto.
     public enum ResultadoCompra
     {
         Exito,
@@ -15,7 +15,6 @@ namespace ImperiosEnGuerra.Modelo.Armas
         OroInsuficiente
     }
 
-    /// <summary>
     /// La tienda donde se venden las 4 armas comprables.
     ///
     /// CONCURRENCIA: la tienda tiene su PROPIO hilo de reabastecimiento que le va
@@ -24,7 +23,6 @@ namespace ImperiosEnGuerra.Modelo.Armas
     /// stock mientras el jugador puede estar comprando, por eso todo va con lock.
     ///
     /// Es la misma idea de RecursoModel.IniciarRegeneracion(), aplicada a la tienda.
-    /// </summary>
     public sealed class TiendaArmasModel
     {
         private readonly object _candado = new object();
@@ -70,7 +68,6 @@ namespace ImperiosEnGuerra.Modelo.Armas
         //  COMPRA
         // -------------------------------------------------------------------
 
-        /// <summary>
         /// Intenta venderle un arma al jugador.
         ///
         /// Aqui esta el punto delicado de concurrencia: la compra toca DOS estados
@@ -83,7 +80,7 @@ namespace ImperiosEnGuerra.Modelo.Armas
         ///   1. RESERVAR el stock bajo el lock de la tienda, y soltarlo.
         ///   2. COBRAR el oro (JugadorModel usa su propio lock, ya sin el nuestro).
         ///   3. Si el cobro falla, DEVOLVER la reserva (compensacion).
-        /// </summary>
+
         public ResultadoCompra Comprar(JugadorModel jugador, InventarioArmasModel inventario, TipoArma tipo)
         {
             if (jugador == null) throw new ArgumentNullException(nameof(jugador));
@@ -126,7 +123,7 @@ namespace ImperiosEnGuerra.Modelo.Armas
             {
                 // Carrera rarisima: alguien se la agrego entre la validacion y aqui.
                 // Devolvemos el oro y el stock para no dejar al jugador robado.
-                jugador.AgregarRecurso(TipoRecurso.Oro, precio);
+                jugador.Conseguir_Recursos("Oro", precio);
                 DevolverStock(tipo);
                 return ResultadoCompra.YaLaPosee;
             }
@@ -145,7 +142,6 @@ namespace ImperiosEnGuerra.Modelo.Armas
             StockCambio?.Invoke(tipo, StockDe(tipo));
         }
 
-        /// <summary>
         /// Cobra el precio del arma.
         ///
         /// Usa GastarSiAlcanza (el metodo [8] que se agrego a JugadorModel) y NO
@@ -153,7 +149,6 @@ namespace ImperiosEnGuerra.Modelo.Armas
         /// separadas: dos hilos podrian pasar los dos por el TieneRecursos con
         /// el mismo oro en la bolsa y cobrar ambos. GastarSiAlcanza comprueba y
         /// descuenta dentro del mismo lock, asi que o cobra completo o no cobra.
-        /// </summary>
         private static bool CobrarOro(JugadorModel jugador, int precio)
         {
             return jugador.GastarSiAlcanza(precio);
@@ -193,7 +188,7 @@ namespace ImperiosEnGuerra.Modelo.Armas
                     return;
 
                 _reabasteciendo = false;
-                hilo = _hiloReabastecimiento;
+                hilo = _hiloReabastecimiento;    //CONCURRENCIA
                 _hiloReabastecimiento = null;
             }
 
@@ -234,7 +229,7 @@ namespace ImperiosEnGuerra.Modelo.Armas
             }
         }
 
-        /// <summary>Mensaje listo para mostrarle al jugador en la UI.</summary>
+        /// Mensaje listo para mostrarle al jugador en la UI.
         public static string Mensaje(ResultadoCompra resultado, TipoArma tipo)
         {
             string nombre = CatalogoArmas.Nombre(tipo);

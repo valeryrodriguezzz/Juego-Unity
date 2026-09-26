@@ -10,10 +10,10 @@ namespace ImperiosEnGuerra.Modelo.Unidades
 
     public class UnidadMeleeModel : UnidadModel
     {
-        public UnidadMeleeModel(string civilizacion)
+        // El nombre se pasa directamente: "Hoplita" (Grecia), "Inmortal" (Persia), etc.
+        public UnidadMeleeModel(string nombre)
         {
-            // El nombre depende de la civilización
-            Nombre          = CivilizacionInfo.NombreUnidadMelee(civilizacion); //No se que se deba cambiar aca
+            Nombre          = nombre;
 
             // Estadísticas iguales para todas las civilizaciones
             Vida            = 120;
@@ -31,9 +31,10 @@ namespace ImperiosEnGuerra.Modelo.Unidades
 
     public class UnidadRangoModel : UnidadModel
     {
-        public UnidadRangoModel(string civilizacion)
+        // El nombre se pasa directamente: "Arquero" (Grecia), "Arquero Persa" (Persia), etc.
+        public UnidadRangoModel(string nombre)
         {
-            Nombre          = CivilizacionInfo.NombreUnidadRango(civilizacion);//No se que se deba cambiar aca
+            Nombre          = nombre;
 
             Vida            = 70;
             VidaMax         = 70;

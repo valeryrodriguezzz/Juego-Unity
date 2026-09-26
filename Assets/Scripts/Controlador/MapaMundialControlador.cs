@@ -31,13 +31,26 @@ namespace ImperiosEnGuerra.Controlador
             _partida = partida;
         }
 
+        /// Igual que la version por Id, pero por nombre de imperio ("Persia", "Roma"...).
+        /// Es mas seguro para la Vista: los Id cambian si se crea otra partida.
+        public void SeleccionarTerritorio(string imperio)
+        {
+            var territorio = _partida.MapaMundial.Territorios
+                .Find(t => t.Nombre == imperio);
+            SeleccionarTerritorio(territorio);
+        }
+
         /// La Vista llama este método cuando el jugador hace clic en un territorio.
         /// Valida si es atacable y lo selecciona.
         public void SeleccionarTerritorio(int territorioId)
         {
             var territorio = _partida.MapaMundial.Territorios
                 .Find(t => t.Id == territorioId);
+            SeleccionarTerritorio(territorio);
+        }
 
+        private void SeleccionarTerritorio(TerritorioModel territorio)
+        {
             if (territorio == null)
             {
                 OnAccionInvalida?.Invoke("Territorio no encontrado.");
@@ -80,11 +93,15 @@ namespace ImperiosEnGuerra.Controlador
             OnBatallaIniciada?.Invoke(territorio);
         }
 
-        /// Llamado por PartidaController al terminar una batalla ganada.
-        /// Actualiza el mapa y verifica si el jugador ganó todo.
+        // Llamado por PartidaController al terminar una batalla ganada.
+        // Actualiza el mapa y verifica si el jugador ganó todo.
         public void NotificarBatallaGanada(int territorioId)
         {
-            _partida.MapaMundial.ConquistarTerritorio(territorioId);
+            var territorio = _partida.MapaMundial.Territorios
+                .Find(t => t.Id == territorioId);
+
+            if (territorio != null)
+                _partida.MapaMundial.ConquistarTerritorio(territorio);
 
             if (_partida.MapaMundial.JugadorGanoTodo)
                 OnJuegoGanado?.Invoke();
