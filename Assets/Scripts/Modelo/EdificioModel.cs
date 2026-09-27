@@ -105,8 +105,38 @@ namespace ImperiosEnGuerra.Modelo
 
         public float TiempoConstruccionSeg
         {
-            get { return tiempoConstruccionSeg; }
-            protected set { tiempoConstruccionSeg = value; }
+            get { lock (_lock) { return tiempoConstruccionSeg; } }
+            protected set { lock (_lock) { tiempoConstruccionSeg = value; } }
+        }
+
+        /// <summary>
+        /// Acorta el tiempo de obra segun lo buena que sea la herramienta del
+        /// constructor: con el martillo (multiplicador 2) la obra tarda la
+        /// mitad. Devuelve los segundos que quedaron.
+        ///
+        /// Solo tiene efecto ANTES de empezar: una vez el hilo de construccion
+        /// arranco, cambiarle el tiempo a mitad de camino haria saltar el
+        /// porcentaje de golpe. Por eso se comprueba y si ya arranco no hace
+        /// nada.
+        ///
+        /// Va con lock porque el hilo de construccion lee tiempoConstruccionSeg
+        /// para calcular cuanto avanza en cada vuelta.
+        /// </summary>
+        public float AplicarVelocidadDeConstruccion(float multiplicador)
+        {
+            if (multiplicador <= 0f) return TiempoConstruccionSeg;
+
+            lock (_lock)
+            {
+                if (_construyendo || construido) return tiempoConstruccionSeg;
+
+                tiempoConstruccionSeg = tiempoConstruccionSeg / multiplicador;
+
+                // Nunca instantaneo: se tiene que alcanzar a ver la obra.
+                if (tiempoConstruccionSeg < 0.5f) tiempoConstruccionSeg = 0.5f;
+
+                return tiempoConstruccionSeg;
+            }
         }
 
         public int CostoOro
@@ -195,37 +225,103 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
+        // MANEJO DE EXCEPCIONES EN LOS HILOS
+        //
+        // Todo el cuerpo de un hilo va dentro de try-catch, y ademas cada
+        // vuelta del bucle lleva el suyo. No es por adornar:
+        //
+        // Una excepcion que se escapa de un hilo secundario no cierra el
+        // juego, lo cual suena bien pero es peor: mata ese hilo en silencio y
+        // nadie se entera. La obra se quedaria congelada en el 40%, o la
+        // granja dejaria de producir para siempre, sin un solo mensaje en la
+        // consola. Con el try por vuelta, un fallo puntual se anota y la
+        // siguiente vuelta sigue como si nada.
+        //
+        // Lo que se atrapa va a RegistroDeErrores, y de ahi a la consola y a
+        // log_partida.txt.
         private void ConstruirEnHilo()
         {
-            const int PASO_MS = 200;
-            var reloj = Stopwatch.StartNew();
-
-            while (_construyendo)
+            try
             {
-                // Espera interrumpible: true si pidieron parar
-                if (_senalParar.Wait(PASO_MS)) return;
+                const int PASO_MS = 200;
+                var reloj = Stopwatch.StartNew();
 
-                float pct = tiempoConstruccionSeg <= 0f
-                    ? 100f
-                    : (float)(reloj.Elapsed.TotalSeconds / tiempoConstruccionSeg * 100.0);
-                if (pct > 100f) pct = 100f;
+                while (_construyendo)
+                {
+                    // Espera interrumpible: true si pidieron parar
+                    if (_senalParar.Wait(PASO_MS)) return;
 
-                lock (_lock) { porcentajeConstruccion = pct; }
+                    float pct = tiempoConstruccionSeg <= 0f
+                        ? 100f
+                        : (float)(reloj.Elapsed.TotalSeconds / tiempoConstruccionSeg * 100.0);
+                    if (pct > 100f) pct = 100f;
 
-                if (pct >= 100f) break;
+                    lock (_lock) { porcentajeConstruccion = pct; }
+
+                    if (pct >= 100f) break;
+                }
+
+                lock (_lock)
+                {
+                    // Detener() pudo llamarse justo antes: si es asi, no se termina nada
+                    if (!_construyendo) return;
+
+                    _construyendo = false;
+                    Construccion();
+                    IniciarProduccionConLock();
+                }
+
+                // El evento llama a codigo de fuera (la Vista), que podria
+                // fallar. Si lo hace, el edificio ya quedo construido: lo que
+                // se pierde es el aviso, y eso se anota en vez de dejar la
+                // excepcion suelta.
+                try
+                {
+                    OnConstruccionTerminada?.Invoke(this);
+                }
+                catch (Exception ex)
+                {
+                    RegistroDeErrores.Reportar(Nombre + ".OnConstruccionTerminada", ex);
+                }
             }
+            catch (Exception ex)
+            {
+                // El edificio se queda a medias, pero el juego sigue y queda
+                // constancia de por que.
+                _construyendo = false;
+                RegistroDeErrores.Reportar(Nombre + ".ConstruirEnHilo", ex);
+            }
+        }
+
+        /// <summary>
+        /// Deja el edificio como si ya se hubiera terminado de construir, y le
+        /// vuelve a arrancar el hilo de produccion. Es lo que se usa al cargar
+        /// una partida guardada: la granja que el jugador construyo antes de
+        /// salir tiene que seguir dando comida al volver.
+        ///
+        /// No se puede hacer con Construccion() a secas: ese metodo solo marca
+        /// el edificio como terminado. Quien arranca la produccion es el hilo
+        /// de obra al llegar al 100%, y ese hilo aqui nunca corrio.
+        /// </summary>
+        public void RestaurarComoConstruido(JugadorModel dueno)
+        {
+            if (dueno == null) return;
 
             lock (_lock)
             {
-                // Detener() pudo llamarse justo antes: si es asi, no se termina nada
-                if (!_construyendo) return;
+                if (construido && _produciendo) return;
 
+                _dueno = dueno;
                 _construyendo = false;
-                Construccion();
+                construido = true;
+                porcentajeConstruccion = 100f;
+
+                // La señal pudo quedar levantada de un Detener() anterior: si
+                // no se baja, el hilo de produccion sale en su primera vuelta.
+                _senalParar.Reset();
+
                 IniciarProduccionConLock();
             }
-
-            OnConstruccionTerminada?.Invoke(this);
         }
 
         // ── PRODUCCION (hilo) ───────────────────────────────────────────
@@ -245,12 +341,21 @@ namespace ImperiosEnGuerra.Modelo
         {
             while (_produciendo)
             {
-                if (_senalParar.Wait(1000)) break;
+                try
+                {
+                    if (_senalParar.Wait(1000)) break;
 
-                // Un edificio destruido no produce
-                if (!EstaEnPie) continue;
+                    // Un edificio destruido no produce
+                    if (!EstaEnPie) continue;
 
-                _dueno.Conseguir_Recursos(recursoQueProduce, produccionPorSegundo);
+                    _dueno.Conseguir_Recursos(recursoQueProduce, produccionPorSegundo);
+                }
+                catch (Exception ex)
+                {
+                    // Se pierde la produccion de este segundo, no la del
+                    // edificio: la vuelta siguiente lo intenta otra vez.
+                    RegistroDeErrores.Reportar(Nombre + ".ProducirEnHilo", ex);
+                }
             }
         }
 

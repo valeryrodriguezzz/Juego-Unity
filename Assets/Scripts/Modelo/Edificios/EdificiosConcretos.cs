@@ -159,6 +159,21 @@ namespace ImperiosEnGuerra.Modelo.Edificios
             EsperaSeg      = 10;
         }
 
+        /// <summary>
+        /// Permite que cada iglesia del mapa tenga sus propios numeros sin
+        /// tocar esta clase: la del monasterio de Roma puede curar mas caro
+        /// que la que construye el jugador en su base.
+        /// </summary>
+        public void Configurar(int curacionPorUso, int costoOroPorUso, int esperaSeg)
+        {
+            lock (_lock)
+            {
+                if (curacionPorUso > 0) CuracionPorUso = curacionPorUso;
+                if (costoOroPorUso >= 0) CostoOroPorUso = costoOroPorUso;
+                if (esperaSeg >= 0) EsperaSeg = esperaSeg;
+            }
+        }
+
         // Segundos que faltan para poder usarla otra vez (0 = disponible)
         public double SegundosParaPoderUsar()
         {
@@ -185,6 +200,49 @@ namespace ImperiosEnGuerra.Modelo.Edificios
                 _ultimoUso = System.DateTime.UtcNow;
                 return true;
             }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  FABRICA
+    //
+    //  Convierte una clave de texto en el edificio que toca. La usa el panel
+    //  de construccion y, sobre todo, la carga de partidas guardadas: en el
+    //  archivo solo cabe el nombre, y de ahi hay que volver a sacar el objeto
+    //  con sus hilos.
+    //
+    //  La clave NO es el Nombre del edificio: "Mina de Oro" lleva espacios y
+    //  "Armería" lleva tilde, y las dos cosas se rompen al viajar por un
+    //  archivo de texto. Se usa una palabra sin adornos.
+    // ═══════════════════════════════════════════════════
+
+    public static class FabricaEdificios
+    {
+        public static EdificioModel Crear(string clave)
+        {
+            if (string.IsNullOrEmpty(clave)) return null;
+
+            switch (clave.Trim().ToLowerInvariant())
+            {
+                case "granja":      return new GranjaModel();
+                case "mina":        return new MinaModel();
+                case "aserradero":  return new AserraderoModel();
+                case "armeria":     return new ArmeriaModel();
+                case "iglesia":     return new IglesiaModel();
+                case "cuartel":     return new CuartelModel();
+                default:            return null;
+            }
+        }
+
+        public static string Clave(EdificioModel edificio)
+        {
+            if (edificio is GranjaModel)     return "granja";
+            if (edificio is MinaModel)       return "mina";
+            if (edificio is AserraderoModel) return "aserradero";
+            if (edificio is ArmeriaModel)    return "armeria";
+            if (edificio is IglesiaModel)    return "iglesia";
+            if (edificio is CuartelModel)    return "cuartel";
+            return "";
         }
     }
 

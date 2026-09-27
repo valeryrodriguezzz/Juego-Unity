@@ -57,6 +57,25 @@ namespace ImperiosEnGuerra.Modelo
         private Thread _hiloIA;
         private Thread _hiloJugador;
         private volatile bool _batallaActiva = false;
+
+        /// <summary>
+        /// Hay una batalla en curso. Importa de verdad: TerminarBatalla NO hace
+        /// nada si esto es false, asi que sin batalla empezada no hay resultado
+        /// que anunciar y el panel de victoria o derrota nunca aparece.
+        /// </summary>
+        public bool BatallaActiva => _batallaActiva;
+
+        // Cuando la batalla se pelea en el mapa (el enemigo camina y ataca con
+        // su animacion), el golpe lo da EnemigoController desde la escena y
+        // este hilo NO debe pegar tambien, o el jugador recibiria doble daño.
+        // El hilo sigue vivo y vigilando: solo se salta el ataque.
+        private volatile bool _ataqueAutomaticoIA = true;
+
+        public bool AtaqueAutomaticoIA
+        {
+            get { return _ataqueAutomaticoIA; }
+            set { _ataqueAutomaticoIA = value; }
+        }
         private volatile int _msEntreAtaquesIA = 2000;
         private readonly object _lock = new object();
 
@@ -119,6 +138,7 @@ namespace ImperiosEnGuerra.Modelo
                 while (_accionesJugador.TryDequeue(out descartada)) { }
                 _accionJugador.Reset();
                 _senalParar.Reset();
+                _ataqueAutomaticoIA = true; // el controlador de la escena lo apaga si pelea en el mapa
                 _batallaActiva = true;
 
                 _hiloJugador = new Thread(TurnoJugador) { IsBackground = true };
@@ -130,26 +150,39 @@ namespace ImperiosEnGuerra.Modelo
         }
 
         // Hilo del Jugador: espera la señal (clic), ejecuta las acciones pedidas y vuelve a esperar
+        // MANEJO DE EXCEPCIONES EN LOS HILOS DE BATALLA
+        //
+        // Si una excepcion se escapara de aqui, este hilo moriria y la batalla
+        // se quedaria colgada: el jugador podria seguir dando clic a atacar y
+        // no pasaria nada, sin ningun error visible. Con el try por vuelta, un
+        // fallo puntual se anota y la batalla continua.
         private void TurnoJugador()
         {
             while (_batallaActiva)
             {
-                _accionJugador.Wait();
-                _accionJugador.Reset();
-
-                AccionJugador accion;
-                while (_accionesJugador.TryDequeue(out accion))
+                try
                 {
-                    lock (_lock)
-                    {
-                        // Se revisa DENTRO del lock: la IA pudo terminar la batalla justo antes
-                        if (!_batallaActiva || IA == null) return;
+                    _accionJugador.Wait();
+                    _accionJugador.Reset();
 
-                        if (accion == AccionJugador.AtacarCentroUrbano)
-                            AtacarCentroUrbanoIA();
-                        else
-                            AtacarVidaIA();
+                    AccionJugador accion;
+                    while (_accionesJugador.TryDequeue(out accion))
+                    {
+                        lock (_lock)
+                        {
+                            // Se revisa DENTRO del lock: la IA pudo terminar la batalla justo antes
+                            if (!_batallaActiva || IA == null) return;
+
+                            if (accion == AccionJugador.AtacarCentroUrbano)
+                                AtacarCentroUrbanoIA();
+                            else
+                                AtacarVidaIA();
+                        }
                     }
+                }
+                catch (Exception ex)
+                {
+                    RegistroDeErrores.Reportar("PartidaModel.TurnoJugador", ex);
                 }
             }
         }
@@ -185,20 +218,29 @@ namespace ImperiosEnGuerra.Modelo
         {
             while (_batallaActiva)
             {
-                // Espera interrumpible: devuelve true si pidieron parar
-                if (_senalParar.Wait(_msEntreAtaquesIA)) break;
-
-                lock (_lock)
+                try
                 {
-                    if (!_batallaActiva || IA == null) break;
+                    // Espera interrumpible: devuelve true si pidieron parar
+                    if (_senalParar.Wait(_msEntreAtaquesIA)) break;
 
-                    IA.Atacar(Jugador);
-                    RegistrarAccion(IA.Nombre, "Ataque",
-                        "Impacto - " + Jugador.Nombre + " queda con " + Jugador.Vida + " de vida");
-                    NumeroTurno++;
+                    if (!_ataqueAutomaticoIA) continue; // pelea en el mapa: pega el enemigo de la escena
 
-                    if (Jugador.Perdio)
-                        TerminarBatalla(false, Jugador.Nombre + " se quedo sin vida");
+                    lock (_lock)
+                    {
+                        if (!_batallaActiva || IA == null) break;
+
+                        IA.Atacar(Jugador);
+                        RegistrarAccion(IA.Nombre, "Ataque",
+                            "Impacto - " + Jugador.Nombre + " queda con " + Jugador.Vida + " de vida");
+                        NumeroTurno++;
+
+                        if (Jugador.Perdio)
+                            TerminarBatalla(false, Jugador.Nombre + " se quedo sin vida");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    RegistroDeErrores.Reportar("PartidaModel.TurnoIA", ex);
                 }
             }
         }
@@ -256,8 +298,19 @@ namespace ImperiosEnGuerra.Modelo
                 TerritorioEnDisputa = null;
             }
 
-            // Fuera del lock, para que un suscriptor lento no bloquee a los hilos de combate
-            OnBatallaTerminada?.Invoke(jugadorGano);
+            // Fuera del lock, para que un suscriptor lento no bloquee a los
+            // hilos de combate. Y en try-catch porque son varios los que
+            // escuchan (el cartel de resultado, el archivo de resultado): si
+            // uno fallara, los demas se quedarian sin enterarse de que la
+            // batalla termino.
+            try
+            {
+                OnBatallaTerminada?.Invoke(jugadorGano);
+            }
+            catch (Exception ex)
+            {
+                RegistroDeErrores.Reportar("PartidaModel.OnBatallaTerminada", ex);
+            }
         }
 
         // Apaga los hilos de batalla y espera a que salgan.
@@ -284,15 +337,47 @@ namespace ImperiosEnGuerra.Modelo
             if (jugador != null && jugador != actual && jugador.IsAlive) jugador.Join(2500);
         }
 
+        // Numero de orden de la linea en el registro. Es distinto de
+        // NumeroTurno: aquel cuenta los turnos de la batalla por turnos, y
+        // ahora la mayoria de acciones (talar, comprar, comer, construir)
+        // pasan fuera de una batalla, asi que todas saldrian con el mismo
+        // numero. Este cuenta las lineas y hace que el archivo se pueda leer
+        // en orden.
+        private int _numeroDeLinea;
+
         public void RegistrarAccion(string quienJuega, string accion, string resultado)
         {
-            int turno = NumeroTurno;
-            string linea = "Turno " + turno + " | " + quienJuega +
-                           " | Accion: " + accion +
-                           " | Resultado: " + resultado;
-            lock (_lockLog) { _logAcciones.Add(linea); }
+            int numero;
+            string linea;
 
-            OnAccionRegistrada?.Invoke(turno, quienJuega, accion, resultado);
+            // Sacar el numero y meter la linea en la lista van juntos dentro
+            // del mismo lock: si no, dos hilos podrian llevarse el mismo
+            // numero, o escribirse en un orden distinto al numerado.
+            lock (_lockLog)
+            {
+                numero = ++_numeroDeLinea;
+
+                linea = "Turno " + numero + " | " + quienJuega +
+                        " | Accion: " + accion +
+                        " | Resultado: " + resultado;
+
+                _logAcciones.Add(linea);
+            }
+
+            // El evento va FUERA del lock: quien lo escuche escribe en disco,
+            // y no hay que quedarse con el candado tomado esperando al disco.
+            //
+            // Y en try-catch porque esto lo llaman los ocho hilos del juego:
+            // un fallo al escribir el registro no puede llevarse por delante
+            // al hilo que estaba talando, produciendo o peleando.
+            try
+            {
+                OnAccionRegistrada?.Invoke(numero, quienJuega, accion, resultado);
+            }
+            catch (Exception ex)
+            {
+                RegistroDeErrores.Reportar("PartidaModel.OnAccionRegistrada", ex);
+            }
         }
 
         // Copia del log, segura de recorrer aunque otro hilo siga escribiendo

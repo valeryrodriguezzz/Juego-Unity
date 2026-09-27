@@ -157,6 +157,21 @@ namespace ImperiosEnGuerra.Modelo.Armas
             return Math.Max(0, (int)Math.Round(cantidadBase * multiplicador));
         }
 
+        /// <summary>
+        /// Pone la durabilidad en un valor exacto. Es solo para cargar una
+        /// partida guardada: en el juego normal la durabilidad solo baja con
+        /// Golpear y sube con Reparar, y eso no se debe poder saltar.
+        /// </summary>
+        public void RestaurarDurabilidad(int valor)
+        {
+            lock (_candado)
+            {
+                _durabilidad = Math.Max(0, Math.Min(DurabilidadMaxima, valor));
+            }
+
+            NotificarCambio();
+        }
+
         /// <summary>Reparacion instantanea (por ejemplo, pagando en la tienda).</summary>
         public void Reparar(int cantidad)
         {
@@ -223,28 +238,39 @@ namespace ImperiosEnGuerra.Modelo.Armas
                 hilo.Join(500);
         }
 
+        // Cada vuelta en try-catch: NotificarCambio llama a los suscriptores
+        // (la mochila, la tienda), que son codigo de fuera y pueden fallar. Si
+        // la excepcion saliera de aqui mataria este hilo, y el arma no se
+        // volveria a reparar nunca mas sin que nadie se enterara.
         private void BucleMantenimiento()
         {
             while (_mantenimientoActivo)
             {
-                // Wait devuelve true si nos pidieron parar; false si se cumplio el tiempo.
-                // Equivale a Thread.Sleep(MsEntreReparaciones) pero interrumpible.
-                if (_senalParar.Wait(MsEntreReparaciones))
-                    break;
-
-                bool hubo = false;
-
-                lock (_candado)
+                try
                 {
-                    if (_durabilidad < DurabilidadMaxima)
-                    {
-                        _durabilidad++;
-                        hubo = true;
-                    }
-                }
+                    // Wait devuelve true si nos pidieron parar; false si se cumplio el tiempo.
+                    // Equivale a Thread.Sleep(MsEntreReparaciones) pero interrumpible.
+                    if (_senalParar.Wait(MsEntreReparaciones))
+                        break;
 
-                if (hubo)
-                    NotificarCambio();
+                    bool hubo = false;
+
+                    lock (_candado)
+                    {
+                        if (_durabilidad < DurabilidadMaxima)
+                        {
+                            _durabilidad++;
+                            hubo = true;
+                        }
+                    }
+
+                    if (hubo)
+                        NotificarCambio();
+                }
+                catch (Exception ex)
+                {
+                    RegistroDeErrores.Reportar(Nombre + ".BucleMantenimiento", ex);
+                }
             }
         }
 
@@ -252,7 +278,8 @@ namespace ImperiosEnGuerra.Modelo.Armas
         {
             // Copia local: el suscriptor podria desuscribirse justo entre el if y la llamada.
             Action<ArmaModel> manejador = DurabilidadCambio;
-            manejador?.Invoke(this);
+            RegistroDeErrores.Avisar(Nombre + ".DurabilidadCambio",
+                () => manejador?.Invoke(this));
         }
 
         public override string ToString()

@@ -111,6 +111,10 @@ namespace ImperiosEnGuerra.Modelo
             set { esIA = value; }
         }
 
+        // El arsenal de este jugador. Se lo pone JugadorArmasController al
+        // arrancar la escena. La IA lo deja en null y pelea solo con su fuerza.
+        public Armas.InventarioArmasModel Armamento { get; set; }
+
         // Unidades y Edificios del jugador
         public List<UnidadModel> Unidades { get; set; } = new List<UnidadModel>();
         public List<EdificioModel> Edificios { get; set; } = new List<EdificioModel>();
@@ -127,7 +131,10 @@ namespace ImperiosEnGuerra.Modelo
             this.esIA = esIA;
             this.vida = 100;
             this.vidaMax = 100;
-            this.oro = 200;  // Empieza con 200 de oro
+            // Oro inicial ajustado a 60: las cuatro herramientas cuestan 140 en
+            // total, asi que no alcanza para todas y hay que elegir con cual
+            // empezar. El resto se compra con lo que se vaya recolectando.
+            this.oro = 60;
             this.madera = 150;
             this.comida = 100;
             this.armas = 0;
@@ -142,9 +149,19 @@ namespace ImperiosEnGuerra.Modelo
         // El descuento va dentro del lock del objetivo.
         public void Atacar(JugadorModel objetivo)
         {
-            // Reduce la vida del objetivo según NivelFuerza
             int fuerza = NivelFuerza;
 
+            // La herramienta que lleva encima suma daño y SE DESGASTA al pelear:
+            // Golpear() devuelve lo que rinde el golpe y le baja durabilidad,
+            // todo dentro del lock del arma. Si esta rota devuelve 0, asi que
+            // el jugador se queda peleando solo con su fuerza base.
+            // La IA no tiene Armamento (queda null) y pelea solo con NivelFuerza.
+            var arma = Armamento != null ? Armamento.Equipada : null;
+            if (arma != null)
+                fuerza += arma.Golpear();
+
+            // El daño se aplica dentro del lock del objetivo: si la IA y el
+            // hambre golpean a la vez, no se pierde ninguno de los dos golpes.
             lock (objetivo._lock)
             {
                 objetivo.vida -= fuerza;
@@ -166,6 +183,25 @@ namespace ImperiosEnGuerra.Modelo
                     case "comida": comida += cantidad; if (comida < 0) comida = 0; break;
                     case "armas": armas += cantidad; if (armas < 0) armas = 0; break;
                 }
+            }
+        }
+
+        // Quita vida de forma atomica y devuelve true si el jugador quedo en cero.
+        //
+        // Existe para que nadie tenga que hacer "jugador.Vida -= x" desde afuera:
+        // eso son TRES operaciones (leer, restar, escribir) y entre ellas se puede
+        // colar otro hilo. Si la IA ataca al mismo tiempo que el hambre hace daño,
+        // uno de los dos golpes se pierde y el jugador sobrevive de gratis.
+        // Aqui las tres van dentro del mismo lock.
+        public bool RecibirDanio(int cantidad)
+        {
+            if (cantidad <= 0) return Vida <= 0;
+
+            lock (_lock)
+            {
+                vida -= cantidad;
+                if (vida < 0) vida = 0;
+                return vida <= 0;
             }
         }
 
@@ -207,7 +243,27 @@ namespace ImperiosEnGuerra.Modelo
 
         private void AlTerminarConstruccion(EdificioModel edificio)
         {
-            OnEdificioConstruido?.Invoke(edificio);
+            RegistroDeErrores.Avisar("JugadorModel.OnEdificioConstruido",
+                () => OnEdificioConstruido?.Invoke(edificio));
+        }
+
+        /// <summary>
+        /// Mete en la lista un edificio que viene de una partida guardada. No
+        /// pasa por Construir() a proposito: ese metodo cobra el oro y la
+        /// madera y arranca la obra desde cero, y este edificio ya se pago y
+        /// ya se levanto en la partida anterior.
+        /// </summary>
+        public void AgregarEdificioRestaurado(EdificioModel edificio)
+        {
+            if (edificio == null) return;
+
+            edificio.EsDeJugador = !esIA;
+            edificio.OnConstruccionTerminada += AlTerminarConstruccion;
+
+            lock (_lock)
+            {
+                if (!Edificios.Contains(edificio)) Edificios.Add(edificio);
+            }
         }
 
         // Copia de la lista, segura de recorrer aunque otro hilo agregue edificios

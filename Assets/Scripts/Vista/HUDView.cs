@@ -1,18 +1,28 @@
-﻿using ImperiosEnGuerra.Modelo;
+using ImperiosEnGuerra.Modelo;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
-// HUDView: muestra los recursos del jugador (Oro, Madera, Comida) en pantalla.
+// HUDView: muestra en pantalla los recursos, la vida y el hambre del jugador.
 //
 // COMO USARLO EN UNITY:
-// 1. Crea un Canvas en la escena Juego con textos de TMP para Oro, Madera y Comida.
-// 2. Crea un GameObject vacio llamado "HUD" y arrastra este script.
-// 3. En el Inspector conecta los tres TMP_Text.
+// 1. En la escena Juego, Canvas (Screen Space - Overlay) con los textos y barras.
+// 2. GameObject vacio llamado "HUD" con este script.
+// 3. Conecta en el Inspector solo lo que tengas: TODOS los campos son
+//    opcionales, lo que dejes vacio simplemente no se pinta.
+//
+// COMO HACER UNA BARRA:
+//    Clic derecho en el Canvas -> UI -> Slider.
+//    Al Slider: quitale el hijo "Handle Slide Area" (no es para arrastrar),
+//    Interactable DESMARCADO, Min Value 0, Max Value 1.
+//    El color de la barra se cambia en Fill Area > Fill > Image > Color:
+//    rojo para la vida, naranja para el hambre.
 //
 // ACTUALIZACION:
-// Cuando el jugador recolecta un recurso, RecursoNodoController dispara el evento
-// RecursoRecolectado desde el hilo PRINCIPAL de Unity, asi que el HUD puede
-// actualizar el texto directamente sin necesitar MainThreadDispatcher.
+// Se refresca en Update() porque los valores los cambian HILOS del Modelo
+// (el hambre bajando, la IA atacando, los nodos regenerando). Leer cada frame
+// es la forma mas simple y segura: las propiedades del Modelo ya son
+// thread-safe, asi que aqui nunca se lee un valor a medio escribir.
 public class HUDView : MonoBehaviour
 {
     [Header("Textos de recursos")]
@@ -21,10 +31,27 @@ public class HUDView : MonoBehaviour
     [SerializeField] private TMP_Text textoComida;
     [SerializeField] private TMP_Text textoArmas;
 
-    [Header("Texto de vida del jugador (opcional)")]
+    [Header("Vida")]
+    [SerializeField] private Slider barraVida;
     [SerializeField] private TMP_Text textoVida;
 
+    [Header("Hambre")]
+    [Tooltip("Arrastra el GameObject Jugador (el que tiene HambreController). " +
+             "Si lo dejas vacio se busca por el tag Player.")]
+    [SerializeField] private HambreController hambre;
+    [SerializeField] private Slider barraHambre;
+    [SerializeField] private TMP_Text textoHambre;
+
+    [Tooltip("La barra se pone de este color cuando el hambre esta por acabarse.")]
+    [SerializeField] private Color colorHambreCritica = Color.red;
+    [SerializeField] private Color colorHambreNormal = new Color(1f, 0.6f, 0.1f);
+
+    [Tooltip("Por debajo de este porcentaje la barra cambia de color.")]
+    [Range(0f, 1f)]
+    [SerializeField] private float umbralHambreCritica = 0.25f;
+
     private JugadorModel _jugador;
+    private Image _rellenoHambre;
 
     private void Start()
     {
@@ -38,39 +65,72 @@ public class HUDView : MonoBehaviour
             return;
         }
 
-        // Suscribirse al evento de recoleccion para actualizar en tiempo real
-        RecursoNodoController.RecursoRecolectado += AlRecolectar;
+        // Si no lo arrastraron, se busca el HambreController en el jugador.
+        if (hambre == null)
+        {
+            GameObject jugadorGO = GameObject.FindGameObjectWithTag("Player");
+            if (jugadorGO != null) hambre = jugadorGO.GetComponent<HambreController>();
+        }
+
+        // Se guarda el Image del relleno para poder cambiarle el color.
+        if (barraHambre != null && barraHambre.fillRect != null)
+            _rellenoHambre = barraHambre.fillRect.GetComponent<Image>();
+
+        PrepararBarra(barraVida);
+        PrepararBarra(barraHambre);
 
         Actualizar();
     }
 
-    // Se llama cuando el jugador recolecta un recurso (evento del nodo)
-    private void AlRecolectar(TipoRecurso tipo, int cantidad)
+    // Los Sliders se usan como barras de progreso, no como controles.
+    private void PrepararBarra(Slider barra)
     {
-        Actualizar();
+        if (barra == null) return;
+
+        barra.minValue = 0f;
+        barra.maxValue = 1f;
+        barra.interactable = false;
     }
 
-    // Actualiza todos los textos con los valores actuales del jugador
-    private void Actualizar()
-    {
-        if (_jugador == null) return;
-
-        if (textoOro    != null) textoOro.text    = "Oro: "    + _jugador.Oro;
-        if (textoMadera != null) textoMadera.text = "Madera: " + _jugador.Madera;
-        if (textoComida != null) textoComida.text = "Comida: " + _jugador.Comida;
-        if (textoArmas  != null) textoArmas.text  = "Armas: "  + _jugador.Armas;
-        if (textoVida   != null) textoVida.text   = "Vida: "   + _jugador.Vida + "/" + _jugador.VidaMax;
-    }
-
-    // Update: refresca cada frame para capturar cambios de hilos
-    // (por ejemplo el hilo de la IA quitando vida al jugador)
     private void Update()
     {
         Actualizar();
     }
 
-    private void OnDestroy()
+    private void Actualizar()
     {
-        RecursoNodoController.RecursoRecolectado -= AlRecolectar;
+        if (_jugador == null) return;
+
+        // --- Recursos ---
+        if (textoOro != null) textoOro.text = "Oro: " + _jugador.Oro;
+        if (textoMadera != null) textoMadera.text = "Madera: " + _jugador.Madera;
+        if (textoComida != null) textoComida.text = "Comida: " + _jugador.Comida;
+        if (textoArmas != null) textoArmas.text = "Armas: " + _jugador.Armas;
+
+        // --- Vida ---
+        int vida = _jugador.Vida;
+        int vidaMax = _jugador.VidaMax;
+
+        if (textoVida != null)
+            textoVida.text = vida + "/" + vidaMax;
+
+        if (barraVida != null)
+            barraVida.value = vidaMax > 0 ? (float)vida / vidaMax : 0f;
+
+        // --- Hambre ---
+        if (hambre == null || hambre.Hambre == null) return;
+
+        float porcentaje = hambre.Hambre.Porcentaje;
+
+        if (barraHambre != null)
+            barraHambre.value = porcentaje;
+
+        if (textoHambre != null)
+            textoHambre.text = hambre.Hambre.Nivel + "/" + hambre.Hambre.NivelMaximo;
+
+        if (_rellenoHambre != null)
+            _rellenoHambre.color = porcentaje <= umbralHambreCritica
+                ? colorHambreCritica
+                : colorHambreNormal;
     }
 }

@@ -1,19 +1,18 @@
-﻿namespace ImperiosEnGuerra.Modelo.Armas
+namespace ImperiosEnGuerra.Modelo.Armas
 {
     /// <summary>
-    /// Las 7 armas/herramientas que existen en el juego.
-    /// Solo 4 de ellas son comprables en la tienda (ver CatalogoArmas):
-    /// Hacha, Pico, Cuchillo y Martillo.
-    /// Lanza, Espada y Arco vienen fijas con su personaje.
+    /// Las 4 herramientas del juego. Todas son comprables en la tienda.
+    ///
+    /// Se quitaron Lanza, Espada y Arco: eran armas de combate para los otros
+    /// personajes seleccionables, y al quedar el Pawn como unico jugador ya no
+    /// tenian a quien pertenecer. Si mas adelante las unidades entrenables
+    /// necesitan armamento propio, se agregan aqui de nuevo.
     /// </summary>
     public enum TipoArma
-{
-    Hacha,
-    Pico,
-    Cuchillo,
-    Martillo,
-    Lanza,
-    Espada,
-    Arco
-}
+    {
+        Hacha,
+        Pico,
+        Cuchillo,
+        Martillo
+    }
 }

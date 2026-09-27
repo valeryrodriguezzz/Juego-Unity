@@ -103,23 +103,35 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        // Lógica que corre en el hilo: suma recursos cada segundo
+        // Lógica que corre en el hilo: suma recursos cada segundo.
+        //
+        // [8] CAMBIO: cada vuelta va dentro de try-catch. Una excepcion que se
+        // escapara de aqui mataria el hilo en silencio, y ese arbol o esa mena
+        // no volverian a regenerarse en toda la partida sin ningun aviso. Asi
+        // el fallo queda registrado y la vuelta siguiente sigue trabajando.
         private void RecolectarEnHilo()
         {
             while (_recolectando)
             {
-                // [4] CAMBIO: equivale a Thread.Sleep(1000), pero se puede interrumpir.
-                // Devuelve true si nos pidieron parar antes de que pasara el segundo.
-                if (_senalParar.Wait(1000))
-                    break;
-
-                lock (_lock)        // Bloquea para evitar conflictos. Sin lock dos hilos pueden leer el mismo valor al mismo tiempo y perder datos.
+                try
                 {
-                    cantidad += ProduccionPorSegundo();
+                    // [4] CAMBIO: equivale a Thread.Sleep(1000), pero se puede interrumpir.
+                    // Devuelve true si nos pidieron parar antes de que pasara el segundo.
+                    if (_senalParar.Wait(1000))
+                        break;
 
-                    // [5] CAMBIO: no pasarse del tope.
-                    if (cantidad > CantidadMaxima)
-                        cantidad = CantidadMaxima;
+                    lock (_lock)        // Bloquea para evitar conflictos. Sin lock dos hilos pueden leer el mismo valor al mismo tiempo y perder datos.
+                    {
+                        cantidad += ProduccionEfectiva();
+
+                        // [5] CAMBIO: no pasarse del tope.
+                        if (cantidad > CantidadMaxima)
+                            cantidad = CantidadMaxima;
+                    }
+                }
+                catch (System.Exception ex)
+                {
+                    RegistroDeErrores.Reportar("RecursoModel.RecolectarEnHilo", ex);
                 }
             }
         }
@@ -167,6 +179,25 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
+        // [6] NUEVO: deja el nodo con una cantidad de arranque.
+        //
+        // Hace falta porque las subclases (OroModel, MaderaModel...) llaman
+        // siempre a base(tipo, 0, coordenadas): nacen en cero. Sin esto, el
+        // jugador llega al arbol y no hay nada que talar hasta que el hilo de
+        // regeneracion lo llene, que con 4 por segundo son varios segundos.
+        //
+        // Va con lock porque el hilo de regeneracion ya puede estar corriendo
+        // cuando el Controlador siembra el nodo en su Start().
+        public void Sembrar(int cantidadInicial)
+        {
+            if (cantidadInicial < 0) cantidadInicial = 0;
+
+            lock (_lock)
+            {
+                cantidad = cantidadInicial > CantidadMaxima ? CantidadMaxima : cantidadInicial;
+            }
+        }
+
         // El jugador gasta el recurso:
         public void Gasto(int gastado)
         {
@@ -179,5 +210,25 @@ namespace ImperiosEnGuerra.Modelo
 
         // Cada subclase define cuánto produce por segundo:
         protected abstract int ProduccionPorSegundo();
+
+        /// <summary>
+        /// Permite ajustar el ritmo de regeneracion de ESTE nodo sin tocar la
+        /// subclase. En -1 (lo normal) se usa el valor de ProduccionPorSegundo.
+        ///
+        /// Existe porque el ritmo que trae MaderaModel (4 por segundo) hace que
+        /// un arbol talado se llene otra vez en unos doce segundos, y entonces
+        /// el tocon casi no se alcanza a ver. Con esto cada arbol del mapa
+        /// puede ir a su propio ritmo desde el Inspector.
+        /// </summary>
+        public int RitmoRegeneracion { get; set; } = -1;
+
+        /// <summary>
+        /// Lo que se suma en cada tick del hilo: el ritmo propio si se puso
+        /// uno, y si no el de la subclase.
+        /// </summary>
+        protected int ProduccionEfectiva()
+        {
+            return RitmoRegeneracion >= 0 ? RitmoRegeneracion : ProduccionPorSegundo();
+        }
     }
 }

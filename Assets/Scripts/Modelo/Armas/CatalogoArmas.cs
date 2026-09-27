@@ -1,12 +1,12 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace ImperiosEnGuerra.Modelo.Armas
 {
     /// <summary>
     /// Ficha de datos de un arma: lo que NO cambia durante la partida.
-    /// Es una clase de solo lectura (todas las propiedades tienen get privado sin set),
-    /// por eso se puede leer desde varios hilos a la vez SIN lock.
+    /// Todas sus propiedades son de solo lectura, por eso se puede consultar
+    /// desde varios hilos a la vez SIN lock.
     /// </summary>
     public sealed class InfoArma
     {
@@ -30,13 +30,13 @@ namespace ImperiosEnGuerra.Modelo.Armas
     }
 
     /// <summary>
-    /// Tabla central de armas del juego. Es static y de SOLO LECTURA: se llena una
-    /// unica vez en el constructor estatico y despues nadie la modifica.
+    /// Tabla central de las armas del juego. Es static y de SOLO LECTURA: se
+    /// llena una unica vez en el constructor estatico y nadie la modifica
+    /// despues.
     ///
-    /// Esto es importante para la concurrencia: un diccionario estatico compartido
-    /// entre hilos seria peligroso si alguien lo escribiera en tiempo de ejecucion,
-    /// pero un diccionario que solo se lee es completamente seguro y no necesita lock.
-    /// Por eso se expone como IReadOnlyDictionary y NUNCA se agrega nada despues.
+    /// Eso importa para la concurrencia: un diccionario estatico compartido
+    /// entre hilos seria peligroso si alguien lo escribiera en tiempo de
+    /// ejecucion, pero uno que solo se lee es seguro y no necesita lock.
     /// </summary>
     public static class CatalogoArmas
     {
@@ -46,34 +46,24 @@ namespace ImperiosEnGuerra.Modelo.Armas
 
         static CatalogoArmas()
         {
-            // ---- Las 7 armas -------------------------------------------------
-            // (tipo, nombre, dano, durabilidad, precio en oro, se puede comprar)
+            // ---- Las 4 herramientas -----------------------------------------
+            // (tipo, nombre, daño, durabilidad, precio en oro, se puede comprar)
             _fichas = new Dictionary<TipoArma, InfoArma>
             {
-                { TipoArma.Hacha,    new InfoArma(TipoArma.Hacha,    "Hacha",    12, 60, 30, true)  },
-                { TipoArma.Pico,     new InfoArma(TipoArma.Pico,     "Pico",     10, 80, 40, true)  },
-                { TipoArma.Cuchillo, new InfoArma(TipoArma.Cuchillo, "Cuchillo",  8, 40, 20, true)  },
-                { TipoArma.Martillo, new InfoArma(TipoArma.Martillo, "Martillo", 14, 70, 50, true)  },
- 
-                // Estas tres NO se venden: precio 0 y EsComprable = false.
-                { TipoArma.Lanza,    new InfoArma(TipoArma.Lanza,    "Lanza",    16, 50,  0, false) },
-                { TipoArma.Espada,   new InfoArma(TipoArma.Espada,   "Espada",   20, 60,  0, false) },
-                { TipoArma.Arco,     new InfoArma(TipoArma.Arco,     "Arco",     15, 45,  0, false) }
+                { TipoArma.Hacha,    new InfoArma(TipoArma.Hacha,    "Hacha",    12, 60, 30, true) },
+                { TipoArma.Pico,     new InfoArma(TipoArma.Pico,     "Pico",     10, 80, 40, true) },
+                { TipoArma.Cuchillo, new InfoArma(TipoArma.Cuchillo, "Cuchillo",  8, 40, 20, true) },
+                { TipoArma.Martillo, new InfoArma(TipoArma.Martillo, "Martillo", 14, 70, 50, true) }
             };
 
-            // ---- Con que arma empieza cada personaje -------------------------
-            // AJUSTA esta tabla a tus 5 personajes reales.
-            _armaPorDefecto = new Dictionary<TipoPersonaje, TipoArma>
-            {
-                { TipoPersonaje.Trabajador, TipoArma.Hacha    }, // el unico que despues puede comprar
-                { TipoPersonaje.Guerrero,   TipoArma.Espada   },
-                { TipoPersonaje.Arquero,    TipoArma.Arco     },
-                { TipoPersonaje.Lancero,    TipoArma.Lanza    },
-                { TipoPersonaje.Cazador,    TipoArma.Cuchillo }
-            };
+            // ---- Con que herramienta empieza ---------------------------------
+            // CON NINGUNA: el Pawn arranca con las manos vacias y tiene que
+            // comprar sus cuatro herramientas en la tienda con el oro inicial.
+            // Por eso este diccionario queda vacio. Si algun dia quieres que
+            // alguien nazca con algo, se agrega aqui y todo lo demas se adapta solo.
+            _armaPorDefecto = new Dictionary<TipoPersonaje, TipoArma>();
 
-            // ---- Quien puede comprar en la tienda ----------------------------
-            // Solo el Trabajador. Los demas se quedan con su arma de por vida.
+            // ---- Quien puede comprar -----------------------------------------
             _personajesQuePuedenComprar = new HashSet<TipoPersonaje>
             {
                 TipoPersonaje.Trabajador
@@ -97,25 +87,23 @@ namespace ImperiosEnGuerra.Modelo.Armas
 
         public static bool EsComprable(TipoArma tipo) => Ficha(tipo).EsComprable;
 
-        /// <summary>Arma con la que nace el personaje.</summary>
-        public static TipoArma ArmaPorDefecto(TipoPersonaje personaje)
+        /// <summary>
+        /// Herramienta con la que nace el personaje, si es que nace con alguna.
+        /// Devuelve false cuando empieza con las manos vacias, que es el caso
+        /// del Pawn: tiene que comprarlas todas.
+        /// </summary>
+        public static bool TryArmaPorDefecto(TipoPersonaje personaje, out TipoArma arma)
         {
-            return _armaPorDefecto.TryGetValue(personaje, out TipoArma arma)
-                ? arma
-                : TipoArma.Cuchillo;
+            return _armaPorDefecto.TryGetValue(personaje, out arma);
         }
 
-        /// <summary>true solo para el personaje que tiene permitido ir a la tienda.</summary>
+        /// <summary>true para el personaje que tiene permitido ir a la tienda.</summary>
         public static bool PuedeComprarArmas(TipoPersonaje personaje)
         {
             return _personajesQuePuedenComprar.Contains(personaje);
         }
 
-        /// <summary>
-        /// Lista de armas que ESE personaje puede llegar a comprar.
-        /// Para los personajes con arma fija devuelve una lista vacia,
-        /// asi el Controlador puede simplemente no mostrarles la tienda.
-        /// </summary>
+        /// <summary>Lista de armas que ese personaje puede llegar a comprar.</summary>
         public static List<TipoArma> ArmasComprablesPara(TipoPersonaje personaje)
         {
             var resultado = new List<TipoArma>();
@@ -133,20 +121,17 @@ namespace ImperiosEnGuerra.Modelo.Armas
 
         /// <summary>
         /// Fabrica: crea la instancia concreta que corresponde al tipo.
-        /// Es el unico lugar del proyecto donde se hace "new HachaModel()", etc.,
-        /// para que el resto del codigo trabaje siempre contra ArmaModel (polimorfismo).
+        /// Es el unico lugar del proyecto donde se hace "new HachaModel()",
+        /// para que el resto del codigo trabaje siempre contra ArmaModel.
         /// </summary>
         public static ArmaModel Crear(TipoArma tipo)
         {
             switch (tipo)
             {
-                case TipoArma.Hacha: return new HachaModel();
-                case TipoArma.Pico: return new PicoModel();
+                case TipoArma.Hacha:    return new HachaModel();
+                case TipoArma.Pico:     return new PicoModel();
                 case TipoArma.Cuchillo: return new CuchilloModel();
                 case TipoArma.Martillo: return new MartilloModel();
-                case TipoArma.Lanza: return new LanzaModel();
-                case TipoArma.Espada: return new EspadaModel();
-                case TipoArma.Arco: return new ArcoModel();
                 default:
                     throw new ArgumentOutOfRangeException(nameof(tipo), "No hay clase concreta para: " + tipo);
             }

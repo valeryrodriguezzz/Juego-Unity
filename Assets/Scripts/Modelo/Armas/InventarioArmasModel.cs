@@ -33,13 +33,18 @@ namespace ImperiosEnGuerra.Modelo.Armas
             Personaje = personaje;
             PuedeComprar = CatalogoArmas.PuedeComprarArmas(personaje);
 
-            // Todo personaje nace con su arma por defecto, ya equipada.
-            TipoArma inicial = CatalogoArmas.ArmaPorDefecto(personaje);
-            ArmaModel arma = CatalogoArmas.Crear(inicial);
+            // El Pawn empieza con las manos vacias: Equipada se queda en null
+            // hasta que compre su primera herramienta. Todo el codigo que la
+            // usa comprueba el null, asi que se puede jugar sin nada equipado
+            // (solo que recolectar a mano no rinde).
+            if (CatalogoArmas.TryArmaPorDefecto(personaje, out TipoArma inicial))
+            {
+                ArmaModel arma = CatalogoArmas.Crear(inicial);
 
-            _armas[inicial] = arma;
-            _equipada = arma;
-            _equipada.IniciarMantenimiento(); // arranca su hilo
+                _armas[inicial] = arma;
+                _equipada = arma;
+                _equipada.IniciarMantenimiento(); // arranca su hilo
+            }
         }
 
         /// <summary>Arma que el personaje lleva puesta en este momento.</summary>
@@ -85,6 +90,15 @@ namespace ImperiosEnGuerra.Modelo.Armas
                     return false;
 
                 _armas[arma.Tipo] = arma;
+
+                // Si es la primera que consigue, se le equipa sola: seria raro
+                // comprar el hacha y tener que ir a la mochila a ponersela.
+                if (_equipada == null)
+                {
+                    _equipada = arma;
+                    arma.IniciarMantenimiento();
+                }
+
                 return true;
             }
         }
@@ -115,7 +129,8 @@ namespace ImperiosEnGuerra.Modelo.Armas
             anterior?.DetenerMantenimiento();
             nueva.IniciarMantenimiento();
 
-            ArmaEquipadaCambio?.Invoke(nueva);
+            RegistroDeErrores.Avisar("InventarioArmasModel.ArmaEquipadaCambio",
+                () => ArmaEquipadaCambio?.Invoke(nueva));
             return true;
         }
 

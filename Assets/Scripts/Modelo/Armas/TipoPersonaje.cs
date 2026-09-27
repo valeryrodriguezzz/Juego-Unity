@@ -1,61 +1,29 @@
-﻿namespace ImperiosEnGuerra.Modelo.Armas
+namespace ImperiosEnGuerra.Modelo.Armas
 {
     /// <summary>
-    /// Los 5 personajes seleccionables en el carrusel de la escena SeleccionJugador.
+    /// El personaje del jugador.
     ///
-    /// IMPORTANTE: el valor numerico de cada personaje DEBE coincidir con la posicion
-    /// del retrato dentro del array 'avatares[]' de CharacterSelectManager y con
-    /// 'spritesCuerpo[]' de PlayerController.
+    /// Hoy solo hay uno: el Pawn (Trabajador). Es el unico de Tiny Swords con
+    /// animaciones de talar, picar y construir, asi que se quito la seleccion
+    /// de personaje y con ella los otros cuatro (guerrero, arquero, lancero,
+    /// cazador), que solo tenian idle, caminar y atacar.
     ///
-    /// Si tus 5 personajes se llaman distinto, cambia SOLO los nombres de aqui
-    /// (y la tabla de CatalogoArmas); el resto del sistema no se entera.
+    /// El enum se conserva en vez de borrarlo porque JugadorModel.Rol y el
+    /// InventarioArmasModel trabajan con el, y porque deja la puerta abierta
+    /// a las unidades entrenables sin tener que rehacer nada.
     /// </summary>
     public enum TipoPersonaje
     {
-        Trabajador = 0,
-        Guerrero = 1,
-        Arquero = 2,
-        Lancero = 3,
-        Cazador = 4
+        Trabajador = 0
     }
 
     /// <summary>
-    /// Traduce entre las tres formas de nombrar al personaje que conviven en el
-    /// proyecto: el indice del carrusel (int), el campo Rol de JugadorModel
-    /// (string) y este enum.
-    ///
-    /// La FUENTE DE VERDAD es JugadorModel.Rol, porque vive en el Modelo y
-    /// sobrevive los cambios de escena dentro de la Partida. El AvatarIndex
-    /// solo sirve para elegir el sprite.
+    /// Traduce entre el enum y el campo Rol (string) de JugadorModel, que es
+    /// la fuente de verdad: vive en el Modelo y sobrevive los cambios de escena.
     /// </summary>
     public static class PersonajeInfo
     {
-        public const int CantidadPersonajes = 5;
-
-        /// <summary>
-        /// Convierte el AvatarIndex del carrusel en TipoPersonaje.
-        /// Si el indice viene fuera de rango (por ejemplo al probar la escena
-        /// Juego directamente), devuelve Trabajador.
-        /// </summary>
-        public static TipoPersonaje DesdeAvatarIndex(int avatarIndex)
-        {
-            if (avatarIndex < 0 || avatarIndex >= CantidadPersonajes)
-                return TipoPersonaje.Trabajador;
-
-            return (TipoPersonaje)avatarIndex;
-        }
-
-        /// <summary>Del personaje al indice del carrusel.</summary>
-        public static int AAvatarIndex(TipoPersonaje personaje)
-        {
-            return (int)personaje;
-        }
-
-        /// <summary>
-        /// Del enum al string que se guarda en JugadorModel.Rol.
-        /// Usa SIEMPRE esto para escribir el Rol y nunca tendras un
-        /// "guerrero" en minuscula rondando por ahi.
-        /// </summary>
+        /// <summary>Del enum al string que se guarda en JugadorModel.Rol.</summary>
         public static string ARol(TipoPersonaje personaje)
         {
             return Nombre(personaje);
@@ -81,12 +49,13 @@
 
             switch (rol.Trim().ToLowerInvariant())
             {
-                case "trabajador": resultado = TipoPersonaje.Trabajador; return true;
-                case "guerrero": resultado = TipoPersonaje.Guerrero; return true;
-                case "arquero": resultado = TipoPersonaje.Arquero; return true;
-                case "lancero": resultado = TipoPersonaje.Lancero; return true;
-                case "cazador": resultado = TipoPersonaje.Cazador; return true;
-                default: return false;
+                case "trabajador":
+                case "pawn":
+                    resultado = TipoPersonaje.Trabajador;
+                    return true;
+
+                default:
+                    return false;
             }
         }
 
@@ -95,11 +64,7 @@
             switch (personaje)
             {
                 case TipoPersonaje.Trabajador: return "Trabajador";
-                case TipoPersonaje.Guerrero: return "Guerrero";
-                case TipoPersonaje.Arquero: return "Arquero";
-                case TipoPersonaje.Lancero: return "Lancero";
-                case TipoPersonaje.Cazador: return "Cazador";
-                default: return "Desconocido";
+                default:                       return "Desconocido";
             }
         }
     }

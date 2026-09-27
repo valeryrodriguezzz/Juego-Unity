@@ -105,7 +105,8 @@ namespace ImperiosEnGuerra.Modelo.Armas
                 _stock[tipo] = cantidad - 1;
             }
 
-            StockCambio?.Invoke(tipo, StockDe(tipo));
+            RegistroDeErrores.Avisar("TiendaArmasModel.StockCambio",
+                () => StockCambio?.Invoke(tipo, StockDe(tipo)));
 
             // --- Paso 2: cobrar el oro (ya sin nuestro candado) ---
             int precio = CatalogoArmas.Precio(tipo);
@@ -139,7 +140,8 @@ namespace ImperiosEnGuerra.Modelo.Armas
                     _stock[tipo] = Math.Min(StockMaximoPorArma, cantidad + 1);
             }
 
-            StockCambio?.Invoke(tipo, StockDe(tipo));
+            RegistroDeErrores.Avisar("TiendaArmasModel.StockCambio",
+                () => StockCambio?.Invoke(tipo, StockDe(tipo)));
         }
 
         /// Cobra el precio del arma.
@@ -198,12 +200,32 @@ namespace ImperiosEnGuerra.Modelo.Armas
                 hilo.Join(500);
         }
 
+        // Cada vuelta va en try-catch: si una fallara (por ejemplo porque un
+        // suscriptor de StockCambio revienta), la excepcion mataria el hilo y
+        // la tienda no volveria a reponer stock en toda la partida, sin un
+        // solo mensaje en la consola.
         private void BucleReabastecimiento()
         {
             while (_reabasteciendo)
             {
+                try
+                {
+                    UnaReposicion();
+                }
+                catch (Exception ex)
+                {
+                    RegistroDeErrores.Reportar("TiendaArmasModel.BucleReabastecimiento", ex);
+                }
+            }
+        }
+
+        private void UnaReposicion()
+        {
                 if (_senalParar.Wait(MsEntreReabastecimientos))
-                    break;
+                {
+                    _reabasteciendo = false;
+                    return;
+                }
 
                 var repuestas = new List<TipoArma>();
 
@@ -225,8 +247,8 @@ namespace ImperiosEnGuerra.Modelo.Armas
 
                 // Los eventos se disparan fuera del lock.
                 foreach (TipoArma tipo in repuestas)
-                    StockCambio?.Invoke(tipo, StockDe(tipo));
-            }
+                    RegistroDeErrores.Avisar("TiendaArmasModel.StockCambio",
+                () => StockCambio?.Invoke(tipo, StockDe(tipo)));
         }
 
         /// Mensaje listo para mostrarle al jugador en la UI.
