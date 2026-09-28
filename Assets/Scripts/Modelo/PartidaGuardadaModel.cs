@@ -7,7 +7,7 @@ using ImperiosEnGuerra.Modelo.Edificios;
 
 namespace ImperiosEnGuerra.Modelo
 {
-    /// <summary>
+
     /// MODELO: la foto de una partida en un momento dado, y como se convierte
     /// en texto y vuelve.
     ///
@@ -32,15 +32,8 @@ namespace ImperiosEnGuerra.Modelo
     /// puede abrir con el Bloc de notas para revisar que se guardo, que en
     /// una sustentacion vale mucho, y va en la misma linea que los otros
     /// archivos del proyecto (configuracion.txt, log_partida.txt).
-    ///
-    /// OJO CON LOS DECIMALES
-    /// Todos los numeros con coma se escriben y se leen con
-    /// CultureInfo.InvariantCulture. En un Windows configurado en español la
-    /// coma es el separador decimal, asi que sin esto "-304.10" se guardaria
-    /// como "-304,10" y al volver a leerlo el punto y coma del separador de
-    /// campos lo partiria mal. Es un error que solo aparece en la maquina de
-    /// quien tiene el sistema en español, o sea justo en la demostracion.
-    /// </summary>
+
+
     public class PartidaGuardadaModel
     {
         public const int VERSION = 1;
@@ -145,12 +138,9 @@ namespace ImperiosEnGuerra.Modelo
         // ────────────────────────────────────────────────────────────────
         //  Aplicar
         // ────────────────────────────────────────────────────────────────
-
-        /// <summary>
         /// Vuelca esta foto sobre una partida recien creada. Igual que arriba,
         /// aqui solo se toca el Modelo: la posicion en el mapa y el hambre los
         /// aplica el Controlador cuando la escena ya esta cargada.
-        /// </summary>
         public void Aplicar(PartidaModel partida)
         {
             if (partida == null || partida.Jugador == null) return;
@@ -203,11 +193,11 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        /// <summary>
+
         /// Recrea los EdificioModel guardados y los deja produciendo. Devuelve
         /// la lista emparejada con Edificios, en el mismo orden, para que el
         /// Controlador sepa donde poner cada uno en el mapa.
-        /// </summary>
+
         public List<EdificioModel> RecrearEdificios(PartidaModel partida)
         {
             var creados = new List<EdificioModel>();

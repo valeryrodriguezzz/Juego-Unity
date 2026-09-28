@@ -35,7 +35,7 @@ namespace ImperiosEnGuerra.Modelo.Armas
         public int StockMaximoPorArma { get; }
         public int MsEntreReabastecimientos { get; }
 
-        /// <summary>Avisa que cambio el stock de un arma. Puede venir de otro hilo.</summary>
+        /// Avisa que cambio el stock de un arma. Puede venir de otro hilo.
         public event Action<TipoArma, int> StockCambio;
 
         public TiendaArmasModel(int stockMaximoPorArma = 3, int msEntreReabastecimientos = 8000)

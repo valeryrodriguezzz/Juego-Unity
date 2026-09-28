@@ -25,7 +25,7 @@ namespace ImperiosEnGuerra.Modelo
         public int CostoArmas { get; protected set; }  // ← Las armas se producen con hilos
         public int TiempoEntrenamientoSeg { get; protected set; }
 
-        // ¿Es del jugador humano (Grecia) o de la IA (Persia)?
+        // ¿Es del jugador humano (Grecia) o de la IA ?
         public bool EsDeJugador { get; set; } = true;
 
         // Estado

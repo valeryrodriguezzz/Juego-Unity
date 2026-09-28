@@ -58,11 +58,10 @@ namespace ImperiosEnGuerra.Modelo
         private Thread _hiloJugador;
         private volatile bool _batallaActiva = false;
 
-        /// <summary>
         /// Hay una batalla en curso. Importa de verdad: TerminarBatalla NO hace
         /// nada si esto es false, asi que sin batalla empezada no hay resultado
         /// que anunciar y el panel de victoria o derrota nunca aparece.
-        /// </summary>
+
         public bool BatallaActiva => _batallaActiva;
 
         // Cuando la batalla se pelea en el mapa (el enemigo camina y ataca con

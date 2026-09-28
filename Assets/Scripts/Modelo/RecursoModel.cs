@@ -6,9 +6,8 @@ namespace ImperiosEnGuerra.Modelo
     /// Recoleccion() arranca un hilo en segundo plano que suma cantidad automáticamente mientras el jugador está en la ubicación del recurso.
     ///
     /// ===================================================================
-    ///  VERSION REVISADA. Todo lo que cambio esta marcado con [1]..[5].
     ///  [1] es NECESARIO para conectar las armas.
-    ///  [2] y [3] corrigen dos errores reales de concurrencia.
+    ///  [2] y [3] corrigen dos errores de concurrencia.
     ///  [4] y [5] son mejoras opcionales.
     ///  Las firmas que ya usabas (Recoleccion, DetenerRecoleccion, Gasto,
     ///  Tipo, Cantidad, Coordenadas) NO cambiaron: nada de lo que ya
@@ -24,20 +23,19 @@ namespace ImperiosEnGuerra.Modelo
         // Control del hilo
         private Thread _hiloRecoleccion;
 
-        // [2] CAMBIO: 'volatile'.
+        // [2] 'volatile'.
         // Sin volatile, el compilador puede guardarse este bool en un registro
         // dentro del while del hilo y no volver a mirar la memoria nunca.
         // Resultado: llamas DetenerRecoleccion() y el hilo sigue corriendo.
-        // Es un error que casi nunca se ve en el editor y aparece en la build.
         private volatile bool _recolectando = false;
 
         private readonly object _lock = new object(); // Evita conflictos entre hilos
 
-        // [4] NUEVO (opcional): señal para poder cortar la espera del hilo al instante.
+        // [4] señal para poder cortar la espera del hilo al instante.
         // Sin esto, DetenerRecoleccion() deja al hilo durmiendo hasta 1 segundo mas.
         private readonly ManualResetEventSlim _senalParar = new ManualResetEventSlim(false);
 
-        // [5] NUEVO (opcional): tope. Sin tope, un arbol al que nadie le tala
+        // [5] tope. Sin tope, un arbol al que nadie le tala
         // durante 10 minutos termina con 600 de madera. Con tope, el nodo se
         // "llena" y deja de crecer, que es como funciona en Age of Empires.
         //
@@ -66,7 +64,7 @@ namespace ImperiosEnGuerra.Modelo
 
         public bool EstaRecolectando => _recolectando;
 
-        /// [5] NUEVO: util para pintar una barra de "cuanto le queda al arbol".
+        /// [5] util para pintar una barra de "cuanto le queda al arbol".
         public bool EstaAgotado
         {
             get { lock (_lock) { return cantidad <= 0; } }
@@ -85,7 +83,7 @@ namespace ImperiosEnGuerra.Modelo
         // El jugador llega al lugar → arranca el hilo. ACÁ ESTA LA CONCURRENCIA . El hilo suma recursos cada segundo mientras el jugador está en la zona.
         public void Recoleccion()
         {
-            // [3] CAMBIO: la verificacion va DENTRO del lock.
+            // [3] la verificacion va DENTRO del lock.
             // Antes, si dos colliders disparaban Recoleccion() casi al mismo tiempo,
             // los dos podian pasar el 'if' antes de que alguno pusiera la bandera
             // en true, y se creaban DOS hilos sumando al mismo recurso: el arbol
@@ -105,7 +103,7 @@ namespace ImperiosEnGuerra.Modelo
 
         // Lógica que corre en el hilo: suma recursos cada segundo.
         //
-        // [8] CAMBIO: cada vuelta va dentro de try-catch. Una excepcion que se
+        // [8] cada vuelta va dentro de try-catch. Una excepcion que se
         // escapara de aqui mataria el hilo en silencio, y ese arbol o esa mena
         // no volverian a regenerarse en toda la partida sin ningun aviso. Asi
         // el fallo queda registrado y la vuelta siguiente sigue trabajando.
@@ -115,7 +113,7 @@ namespace ImperiosEnGuerra.Modelo
             {
                 try
                 {
-                    // [4] CAMBIO: equivale a Thread.Sleep(1000), pero se puede interrumpir.
+                    // [4] Equivale a Thread.Sleep(1000), pero se puede interrumpir.
                     // Devuelve true si nos pidieron parar antes de que pasara el segundo.
                     if (_senalParar.Wait(1000))
                         break;
@@ -124,7 +122,7 @@ namespace ImperiosEnGuerra.Modelo
                     {
                         cantidad += ProduccionEfectiva();
 
-                        // [5] CAMBIO: no pasarse del tope.
+                        // [5] No pasarse del tope.
                         if (cantidad > CantidadMaxima)
                             cantidad = CantidadMaxima;
                     }
@@ -150,13 +148,13 @@ namespace ImperiosEnGuerra.Modelo
                 _hiloRecoleccion = null;
             }
 
-            _senalParar.Set(); // [4] despierta al hilo de una vez
+            _senalParar.Set(); // [4] Despierta al hilo de una vez
 
             if (hilo != null && hilo.IsAlive)
                 hilo.Join(500); // lo esperamos, pero maximo medio segundo
         }
 
-        // [1] NUEVO — ESTE ES EL METODO QUE NECESITAN LAS ARMAS.
+        // [1] METODO QUE NECESITAN LAS ARMAS.
         //
         // Por que no basta con Gasto(): para saber cuanto se llevo el jugador
         // habria que hacer "leer Cantidad -> decidir -> llamar Gasto", y entre
@@ -179,7 +177,7 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        // [6] NUEVO: deja el nodo con una cantidad de arranque.
+        // [6] Deja el nodo con una cantidad de arranque.
         //
         // Hace falta porque las subclases (OroModel, MaderaModel...) llaman
         // siempre a base(tipo, 0, coordenadas): nacen en cero. Sin esto, el
@@ -211,7 +209,7 @@ namespace ImperiosEnGuerra.Modelo
         // Cada subclase define cuánto produce por segundo:
         protected abstract int ProduccionPorSegundo();
 
-        /// <summary>
+
         /// Permite ajustar el ritmo de regeneracion de ESTE nodo sin tocar la
         /// subclase. En -1 (lo normal) se usa el valor de ProduccionPorSegundo.
         ///
@@ -219,13 +217,13 @@ namespace ImperiosEnGuerra.Modelo
         /// un arbol talado se llene otra vez en unos doce segundos, y entonces
         /// el tocon casi no se alcanza a ver. Con esto cada arbol del mapa
         /// puede ir a su propio ritmo desde el Inspector.
-        /// </summary>
+
         public int RitmoRegeneracion { get; set; } = -1;
 
-        /// <summary>
+
         /// Lo que se suma en cada tick del hilo: el ritmo propio si se puso
         /// uno, y si no el de la subclase.
-        /// </summary>
+
         protected int ProduccionEfectiva()
         {
             return RitmoRegeneracion >= 0 ? RitmoRegeneracion : ProduccionPorSegundo();

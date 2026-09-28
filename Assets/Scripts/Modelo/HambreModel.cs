@@ -3,7 +3,6 @@ using System.Threading;
 
 namespace ImperiosEnGuerra.Modelo
 {
-    /// <summary>
     /// El hambre del jugador. Clase C# pura (Modelo): no sabe que existe Unity.
     ///
     /// CONCURRENCIA: tiene su PROPIO hilo, que le va bajando el nivel cada
@@ -20,7 +19,7 @@ namespace ImperiosEnGuerra.Modelo
     /// el hilo de la IA puede estar atacando: uno de los dos golpes se pierde.
     /// Se usa jugador.RecibirDanio(), que hace las tres cosas dentro del lock
     /// del propio jugador.
-    /// </summary>
+
     public class HambreModel
     {
         private readonly object _lock = new object();
@@ -36,27 +35,27 @@ namespace ImperiosEnGuerra.Modelo
 
         public int NivelMaximo { get; }
 
-        /// <summary>Cada cuantos milisegundos baja el hambre.</summary>
+        /// Cada cuantos milisegundos baja el hambre.
         public int MsPorTick { get; set; } = 3000;
 
-        /// <summary>Cuanto baja en cada tick.</summary>
+        /// Cuanto baja en cada tick.
         public int PuntosPorTick { get; set; } = 1;
 
-        /// <summary>Vida que se pierde por tick cuando el hambre esta en cero.</summary>
+        /// Vida que se pierde por tick cuando el hambre esta en cero.
         public int DanioPorTickSinComer { get; set; } = 2;
 
-        /// <summary>Cuanto hambre recupera cada unidad de Comida que se gasta.</summary>
+        /// Cuanto hambre recupera cada unidad de Comida que se gasta.
         public int PuntosPorComida { get; set; } = 10;
 
         // --- Eventos (se disparan desde el hilo del hambre, NO desde Unity) ---
 
-        /// <summary>El nivel cambio. El parametro es el nivel nuevo.</summary>
+        /// El nivel cambio. El parametro es el nivel nuevo.
         public event Action<int> NivelCambio;
 
-        /// <summary>Se paso hambre y se perdio vida. El parametro es el daño.</summary>
+        /// Se paso hambre y se perdio vida. El parametro es el daño.
         public event Action<int> DanioPorHambre;
 
-        /// <summary>El jugador se quedo sin vida por hambre.</summary>
+        /// El jugador se quedo sin vida por hambre.
         public event Action MurioDeHambre;
 
         public HambreModel(JugadorModel jugador, int nivelMaximo = 100)
@@ -73,11 +72,10 @@ namespace ImperiosEnGuerra.Modelo
             get { lock (_lock) { return _nivel; } }
         }
 
-        /// <summary>
         /// Pone el nivel de hambre en un valor exacto. Solo para cargar una
         /// partida guardada: en el juego el nivel solo baja con su hilo y sube
         /// comiendo.
-        /// </summary>
+
         public void RestaurarNivel(int valor)
         {
             if (valor < 0) return;
@@ -90,7 +88,6 @@ namespace ImperiosEnGuerra.Modelo
             NotificarNivel();
         }
 
-        /// <summary>0..1, listo para ponerselo a un Slider de la UI.</summary>
         public float Porcentaje
         {
             get { lock (_lock) { return (float)_nivel / NivelMaximo; } }
@@ -105,7 +102,7 @@ namespace ImperiosEnGuerra.Modelo
 
         // --- Comer ---
 
-        /// <summary>
+
         /// Gasta Comida del jugador y sube el hambre. Devuelve cuanto subio
         /// realmente (0 si no tenia comida o ya estaba lleno).
         ///
@@ -113,7 +110,7 @@ namespace ImperiosEnGuerra.Modelo
         /// alcanzo se sube el nivel. Los dos candados (el del jugador y el de
         /// aqui) nunca se toman a la vez: primero se cobra y se suelta, y
         /// despues se sube. Asi no hay forma de que se traben entre si.
-        /// </summary>
+
         public int Comer(int unidadesDeComida = 1)
         {
             if (unidadesDeComida <= 0) return 0;
@@ -199,7 +196,7 @@ namespace ImperiosEnGuerra.Modelo
             }
         }
 
-        /// <summary>Una vuelta del hilo. Devuelve por su cuenta cuando toca parar.</summary>
+        /// Una vuelta del hilo. Devuelve por su cuenta cuando toca parar.
         private void Tick()
         {
             // Espera interrumpible: true si nos pidieron parar.

@@ -4,7 +4,6 @@ using System.Threading;
 
 namespace ImperiosEnGuerra.Modelo
 {
-    /// <summary>Por que salio bien o mal la compra de un lote de provisiones.</summary>
     public enum ResultadoCompraRecurso
     {
         Exito,
@@ -13,14 +12,13 @@ namespace ImperiosEnGuerra.Modelo
         OroInsuficiente
     }
 
-    /// <summary>
+
     /// Una cosa que vende el mercader: que recurso es, cuantas unidades entrega
     /// por compra y cuanto oro cuesta el lote.
     ///
     /// Se venden por LOTES y no de a una unidad para que comprar no sea dar
     /// treinta clics, y para que se note la diferencia entre ir a recolectar
     /// (gratis pero lento) y comprar (rapido pero cuesta oro).
-    /// </summary>
     public sealed class OfertaRecurso
     {
         public TipoRecurso Recurso { get; }
@@ -37,7 +35,7 @@ namespace ImperiosEnGuerra.Modelo
         }
     }
 
-    /// <summary>
+
     /// MODELO de la parte de provisiones de la tienda: carne y madera a cambio
     /// de oro. Clase de C# pura, sin nada de Unity.
     ///
@@ -54,7 +52,7 @@ namespace ImperiosEnGuerra.Modelo
     /// JugadorModel, y si el cobro falla devuelve la reserva. Si en vez de eso
     /// tomara los dos candados, dos hilos que los pidieran en orden contrario
     /// se quedarian trabados para siempre (deadlock).
-    /// </summary>
+
     public sealed class TiendaRecursosModel
     {
         private readonly object _candado = new object();
@@ -271,7 +269,7 @@ namespace ImperiosEnGuerra.Modelo
 
         // -------------------------------------------------------------------
 
-        /// <summary>Mensaje listo para mostrarle al jugador.</summary>
+        /// Mensaje listo para mostrarle al jugador:
         public static string Mensaje(ResultadoCompraRecurso resultado, OfertaRecurso oferta)
         {
             string nombre = oferta != null ? oferta.Nombre : "eso";
